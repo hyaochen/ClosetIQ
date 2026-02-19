@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  displayName  String
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  items        ClothingItem[]
+  outfits      Outfit[]
+  wearLogs     WearLog[]
+}
+
+model ClothingItem {
+  id               String          @id @default(uuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  category         String          // TOP, BOTTOM, OUTERWEAR, DRESS, SHOES, ACCESSORY, UNDERWEAR, BAG
+  subcategory      String?
+  colors           String[]        // hex color codes
+  colorFamily      String          // RED, BLUE, GREEN, etc.
+  pattern          String          @default("SOLID")
+  material         String?
+  brand            String?
+  size             String?
+  seasons          String[]        // SPRING, SUMMER, AUTUMN, WINTER
+  occasions        String[]        // CASUAL, WORK, FORMAL, SPORT, LOUNGE
+  purchaseDate     DateTime?
+  purchasePrice    Decimal?        @db.Decimal(10, 2)
+  purchaseLocation String?
+  condition        String          @default("GOOD") // NEW, GOOD, FAIR, WORN
+  notes            String?
+  tags             String[]
+  isActive         Boolean         @default(true)
+  declutterReason  String?         // DONATED, SOLD, DISCARDED, GIFTED
+  declutteredAt    DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  images       ClothingImage[]
+  outfitItems  OutfitItem[]
+  wearLogItems WearLogItem[]
+
+  @@index([userId])
+  @@index([userId, category])
+  @@index([userId, isActive])
+}
+
+model ClothingImage {
+  id             String       @id @default(uuid())
+  clothingItemId String
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  originalPath   String
+  displayPath    String
+  thumbnailPath  String
+  isPrimary      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([clothingItemId])
+}
+
+model Outfit {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String?
+  occasions String[]
+  seasons   String[]
+  rating    Int?
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  items    OutfitItem[]
+  wearLogs WearLog[]
+
+  @@index([userId])
+}
+
+model OutfitItem {
+  id             String       @id @default(uuid())
+  outfitId       String
+  outfit         Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  clothingItemId String
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  layerOrder     Int          @default(0)
+
+  @@unique([outfitId, clothingItemId])
+  @@index([outfitId])
+}
+
+model WearLog {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfitId         String?
+  outfit           Outfit?       @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+  date             DateTime      @db.Date
+  occasion         String?
+  weatherTemp      Int?
+  weatherCondition String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+
+  items WearLogItem[]
+
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model WearLogItem {
+  id             String       @id @default(uuid())
+  wearLogId      String
+  wearLog        WearLog      @relation(fields: [wearLogId], references: [id], onDelete: Cascade)
+  clothingItemId String
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+
+  @@unique([wearLogId, clothingItemId])
+  @@index([wearLogId])
+  @@index([clothingItemId])
+}

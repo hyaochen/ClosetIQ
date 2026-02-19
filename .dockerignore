@@ -1,0 +1,10 @@
+node_modules
+.git
+*.md
+.env
+.env.*
+!.env.example
+dist
+.expo
+.turbo
+data

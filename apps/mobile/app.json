@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "電子衣櫃",
+    "slug": "closet",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "closet",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image-picker",
+      "expo-location",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
