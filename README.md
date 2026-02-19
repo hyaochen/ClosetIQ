@@ -23,16 +23,17 @@
 ## 畫面截圖
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="180" alt="首頁" />
-  <img src="docs/screenshots/outfits.png" width="180" alt="穿搭管理" />
-  <img src="docs/screenshots/suggestions.png" width="180" alt="智慧推薦" />
-  <img src="docs/screenshots/profile.png" width="180" alt="個人頁面" />
-  <img src="docs/screenshots/analytics.png" width="180" alt="統計分析" />
+  <img src="docs/screenshots/home.png" width="150" alt="首頁" />
+  <img src="docs/screenshots/wardrobe.png" width="150" alt="衣櫃瀏覽" />
+  <img src="docs/screenshots/outfits.png" width="150" alt="穿搭管理" />
+  <img src="docs/screenshots/suggestions.png" width="150" alt="智慧推薦" />
+  <img src="docs/screenshots/profile.png" width="150" alt="個人頁面" />
+  <img src="docs/screenshots/analytics.png" width="150" alt="統計分析" />
 </p>
 
-| 首頁 | 穿搭管理 | 智慧推薦 | 個人設定 | 統計分析 |
-|:---:|:---:|:---:|:---:|:---:|
-| 快捷入口與每日推薦 | 穿搭組合與評分 | 依場合智慧搭配 | 主題切換與衣櫃總覽 | 花費總覽與品牌分布 |
+| 首頁 | 衣櫃瀏覽 | 穿搭管理 | 智慧推薦 | 個人設定 | 統計分析 |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 快捷入口與每日推薦 | 分類篩選與網格展示 | 穿搭組合與評分 | 依場合智慧搭配 | 主題切換與衣櫃總覽 | 花費總覽與品牌分布 |
 
 ---
 
