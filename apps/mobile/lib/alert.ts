@@ -1,14 +1,35 @@
-import { Alert, Platform } from 'react-native';
+import { create } from 'zustand';
+
+type AlertButton = {
+  text: string;
+  style?: 'default' | 'cancel' | 'destructive';
+  onPress?: () => void;
+};
+
+type AlertState = {
+  visible: boolean;
+  title: string;
+  message?: string;
+  buttons: AlertButton[];
+  show: (title: string, message?: string, buttons?: AlertButton[]) => void;
+  hide: () => void;
+};
+
+export const useAlertStore = create<AlertState>((set) => ({
+  visible: false,
+  title: '',
+  message: undefined,
+  buttons: [],
+  show: (title, message, buttons) =>
+    set({ visible: true, title, message, buttons: buttons || [{ text: '確定' }] }),
+  hide: () => set({ visible: false, title: '', message: undefined, buttons: [] }),
+}));
 
 /**
- * Cross-platform alert that works on both Web and Native.
+ * Cross-platform alert that works on both Web and Native (including mobile browsers).
  */
 export function showAlert(title: string, message?: string) {
-  if (Platform.OS === 'web') {
-    window.alert(message ? `${title}\n\n${message}` : title);
-  } else {
-    Alert.alert(title, message);
-  }
+  useAlertStore.getState().show(title, message, [{ text: '確定' }]);
 }
 
 /**
@@ -16,15 +37,10 @@ export function showAlert(title: string, message?: string) {
  * Returns true if user confirms, false if cancelled.
  */
 export function showConfirm(title: string, message?: string): Promise<boolean> {
-  if (Platform.OS === 'web') {
-    const result = window.confirm(message ? `${title}\n\n${message}` : title);
-    return Promise.resolve(result);
-  }
-
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
+    useAlertStore.getState().show(title, message, [
       { text: '取消', style: 'cancel', onPress: () => resolve(false) },
-      { text: '確定', onPress: () => resolve(true) },
+      { text: '確定', style: 'default', onPress: () => resolve(true) },
     ]);
   });
 }

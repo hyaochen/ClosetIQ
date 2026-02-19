@@ -8,6 +8,7 @@ import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useColorScheme } from 'nativewind';
+import { AlertModal } from '@/components/AlertModal';
 
 export default function RootLayout() {
   const loadSession = useAuthStore((s) => s.loadSession);
@@ -48,6 +49,7 @@ export default function RootLayout() {
           <Stack.Screen name="analytics" options={{ headerShown: true, title: '統計分析' }} />
         </Stack>
       </View>
+      <AlertModal />
     </QueryClientProvider>
   );
 }

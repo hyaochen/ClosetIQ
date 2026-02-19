@@ -143,7 +143,7 @@ Navigate to http://localhost:8083
 | Field | Value |
 |-------|-------|
 | Email | `test@closet.com` |
-| Password | `test` |
+| Password | `00000000` |
 
 > **Security Warning**: Change the default password immediately after first login. This account is for initial setup only.
 
