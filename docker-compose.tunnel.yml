@@ -6,7 +6,7 @@ services:
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: closet-tunnel
-    command: tunnel --config /etc/cloudflared/config.yml run ${TUNNEL_NAME:-closet}
+    command: tunnel --config /etc/cloudflared/closet-docker-config.yml run
     volumes:
       - ${CLOUDFLARED_CONFIG_DIR:-~/.cloudflared}:/etc/cloudflared:ro
     depends_on:

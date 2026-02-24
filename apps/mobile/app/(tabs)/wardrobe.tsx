@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { ClothingCategory, ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+const PAGE_SIZE = 50;
 const categories = [
   { key: undefined, label: '全部' },
   ...Object.entries(ClothingCategoryLabel).map(([key, label]) => ({ key, label })),
@@ -16,47 +17,77 @@ const categories = [
 export default function WardrobeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['items', selectedCategory],
-    queryFn: () => {
+    queryFn: ({ pageParam = 1 }) => {
       const params = new URLSearchParams();
       if (selectedCategory) params.set('category', selectedCategory);
-      params.set('limit', '50');
+      params.set('limit', String(PAGE_SIZE));
+      params.set('page', String(pageParam));
       return api(`/api/items?${params.toString()}`);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: any) => {
+      const { page, totalPages } = lastPage.pagination;
+      return page < totalPages ? page + 1 : undefined;
     },
   });
 
-  const items = data?.items ?? [];
+  const items = data?.pages.flatMap((page: any) => page.items) ?? [];
+  const total = data?.pages[0]?.pagination?.total ?? 0;
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-950">
-      {/* Category Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}
-      >
-        {categories.map((cat) => (
-          <Pressable
-            key={cat.key ?? 'all'}
-            className={`px-4 py-2 rounded-full ${
-              selectedCategory === cat.key
-                ? 'bg-primary-600'
-                : 'bg-gray-100 dark:bg-gray-800'
-            }`}
-            onPress={() => setSelectedCategory(cat.key)}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                selectedCategory === cat.key ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+      {/* Category Filter - Fixed at top */}
+      <View style={{ height: 52, zIndex: 10 }} className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', gap: 8 }}
+          style={{ flex: 1 }}
+        >
+          {categories.map((cat) => (
+            <Pressable
+              key={cat.key ?? 'all'}
+              className={`px-4 py-2 rounded-full ${
+                selectedCategory === cat.key
+                  ? 'bg-primary-600'
+                  : 'bg-gray-100 dark:bg-gray-800'
               }`}
+              onPress={() => setSelectedCategory(cat.key)}
             >
-              {cat.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+              <Text
+                className={`text-sm font-medium ${
+                  selectedCategory === cat.key ? 'text-white' : 'text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                {cat.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Items Count */}
+      {!isLoading && items.length > 0 && (
+        <View className="px-4 py-2 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <Text className="text-xs text-gray-500 dark:text-gray-400">
+            共 {total} 件衣物
+          </Text>
+        </View>
+      )}
 
       {/* Items Grid */}
       {isLoading ? (
@@ -82,6 +113,8 @@ export default function WardrobeScreen() {
           numColumns={3}
           contentContainerStyle={{ padding: 8 }}
           keyExtractor={(item) => item.id}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.5}
           renderItem={({ item }) => (
             <Pressable
               className="flex-1 m-1 aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800 active:opacity-80"
@@ -106,6 +139,13 @@ export default function WardrobeScreen() {
               </View>
             </Pressable>
           )}
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View className="py-4 items-center">
+                <ActivityIndicator size="small" color="#4c6ef5" />
+              </View>
+            ) : null
+          }
         />
       )}
 

@@ -107,11 +107,11 @@ export async function suggestionRoutes(app: FastifyInstance) {
       return { ...item, score };
     });
 
-    // Build 3 outfit suggestions
+    // Build 6 outfit suggestions
     const suggestions = [];
     const usedItemIds = new Set<string>();
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       const outfit: any = { items: [], score: 0 };
 
       // Required slots
@@ -123,8 +123,9 @@ export async function suggestionRoutes(app: FastifyInstance) {
           .sort((a, b) => b.score - a.score);
 
         if (candidates.length > 0) {
-          // Add some randomness - pick from top 3
-          const pick = candidates[Math.min(i, candidates.length - 1)];
+          // Pick from top candidates with some randomness
+          const topN = Math.min(3, candidates.length);
+          const pick = candidates[Math.floor(Math.random() * topN)];
           outfit.items.push({
             id: pick.id,
             name: pick.name,
@@ -143,7 +144,8 @@ export async function suggestionRoutes(app: FastifyInstance) {
           .filter((item) => item.category === 'OUTERWEAR' && !usedItemIds.has(item.id))
           .sort((a, b) => b.score - a.score);
         if (outerwear.length > 0) {
-          const pick = outerwear[Math.min(i, outerwear.length - 1)];
+          const topN = Math.min(3, outerwear.length);
+          const pick = outerwear[Math.floor(Math.random() * topN)];
           outfit.items.push({
             id: pick.id,
             name: pick.name,
