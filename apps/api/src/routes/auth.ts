@@ -4,6 +4,11 @@ import { registerSchema, loginSchema } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
 import { signRefreshToken } from '../plugins/auth.js';
 
+// Rate limiting for auth
+const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000;
+
 export async function authRoutes(app: FastifyInstance) {
   // POST /api/auth/register
   app.post('/api/auth/register', async (request, reply) => {
@@ -54,15 +59,31 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { email, password } = parsed.data;
 
+    // Rate limit check
+    const record = loginAttempts.get(email);
+    if (record && record.count >= MAX_ATTEMPTS && Date.now() - record.lastAttempt < LOCKOUT_MS) {
+      const remaining = Math.ceil((LOCKOUT_MS - (Date.now() - record.lastAttempt)) / 60000);
+      return reply.status(429).send({ error: `登入嘗試過多，請 ${remaining} 分鐘後再試` });
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      const r = loginAttempts.get(email) || { count: 0, lastAttempt: 0 };
+      r.count++; r.lastAttempt = Date.now();
+      loginAttempts.set(email, r);
       return reply.status(401).send({ error: '帳號或密碼錯誤' });
     }
 
     const valid = await argon2.verify(user.passwordHash, password);
     if (!valid) {
+      const r = loginAttempts.get(email) || { count: 0, lastAttempt: 0 };
+      r.count++; r.lastAttempt = Date.now();
+      loginAttempts.set(email, r);
       return reply.status(401).send({ error: '帳號或密碼錯誤' });
     }
+
+    // Clear on success
+    loginAttempts.delete(email);
 
     const tokenPayload = { id: user.id, email: user.email };
     const accessToken = app.jwt.sign(tokenPayload);
