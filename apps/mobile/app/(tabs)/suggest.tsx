@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
-import { OccasionLabel, WeatherConditionLabel } from '@closet/shared';
+import { OccasionLabel, WeatherConditionLabel, ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
@@ -133,10 +133,10 @@ export default function SuggestScreen() {
                 <Text className="text-base font-semibold text-gray-900 dark:text-gray-50 mb-3">
                   推薦 {idx + 1}
                 </Text>
-                <View className="flex-row flex-wrap gap-2">
+                <View className="flex-row flex-wrap gap-3">
                   {suggestion.items.map((item: any) => (
-                    <View key={item.id} className="items-center">
-                      <View className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    <View key={item.id} className="items-center" style={{ width: 76 }}>
+                      <View className="w-full aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
                         {item.thumbnail ? (
                           <Image
                             source={{ uri: `${API_BASE}/api/images/file/${item.thumbnail}` }}
@@ -149,7 +149,12 @@ export default function SuggestScreen() {
                           </View>
                         )}
                       </View>
-                      <Text className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-center" numberOfLines={1}>
+                      <View className="mt-1 bg-gray-100 dark:bg-gray-800 rounded-full px-2 py-0.5">
+                        <Text className="text-xs text-gray-500 dark:text-gray-400 text-center" numberOfLines={1}>
+                          {ClothingCategoryLabel[item.category as keyof typeof ClothingCategoryLabel] ?? item.category}
+                        </Text>
+                      </View>
+                      <Text className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 text-center" numberOfLines={1} style={{ width: 76 }}>
                         {item.name}
                       </Text>
                     </View>

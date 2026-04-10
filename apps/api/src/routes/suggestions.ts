@@ -107,54 +107,89 @@ export async function suggestionRoutes(app: FastifyInstance) {
       return { ...item, score };
     });
 
+    // Helper: pick a candidate with randomness that increases by attempt index
+    const pickCandidate = (candidates: typeof scored, attempt: number) => {
+      if (candidates.length === 0) return null;
+      const topN = Math.min(Math.max(3, attempt + 1), candidates.length);
+      return candidates[Math.floor(Math.random() * topN)];
+    };
+
+    // Helper: format item for response
+    const formatItem = (item: (typeof scored)[0]) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      colorFamily: item.colorFamily,
+      thumbnail: item.images[0]?.thumbnailPath ?? null,
+    });
+
     // Build 6 outfit suggestions
+    // Each suggestion picks independently (usedItemIds resets per outfit)
+    // so all clothes remain candidates for every suggestion (variety via randomness)
     const suggestions = [];
-    const usedItemIds = new Set<string>();
 
     for (let i = 0; i < 6; i++) {
       const outfit: any = { items: [], score: 0 };
+      const usedInOutfit = new Set<string>();
 
-      // Required slots
-      const slots = ['TOP', 'BOTTOM', 'SHOES'];
-
-      for (const slot of slots) {
-        const candidates = scored
-          .filter((item) => item.category === slot && !usedItemIds.has(item.id) && item.score > -10)
+      // Get sorted candidates for a category (no score threshold — always show something)
+      const byCategory = (cat: string) =>
+        scored
+          .filter((item) => item.category === cat && !usedInOutfit.has(item.id))
           .sort((a, b) => b.score - a.score);
 
-        if (candidates.length > 0) {
-          // Pick from top candidates with some randomness
-          const topN = Math.min(3, candidates.length);
-          const pick = candidates[Math.floor(Math.random() * topN)];
-          outfit.items.push({
-            id: pick.id,
-            name: pick.name,
-            category: pick.category,
-            colorFamily: pick.colorFamily,
-            thumbnail: pick.images[0]?.thumbnailPath ?? null,
-          });
-          outfit.score += pick.score;
-          usedItemIds.add(pick.id);
+      // Decide strategy: every 3rd suggestion try DRESS if available
+      const dresses = byCategory('DRESS');
+      const tops = byCategory('TOP');
+      const bottoms = byCategory('BOTTOM');
+      const useDress = dresses.length > 0 && (i % 3 === 2 || (tops.length === 0 && bottoms.length === 0));
+
+      if (useDress) {
+        // DRESS strategy: dress + shoes (+ optional outerwear)
+        const dress = pickCandidate(dresses, i);
+        if (dress) {
+          outfit.items.push(formatItem(dress));
+          outfit.score += dress.score;
+          usedInOutfit.add(dress.id);
+        }
+      } else {
+        // TOP + BOTTOM strategy
+        const top = pickCandidate(tops, i);
+        if (top) {
+          outfit.items.push(formatItem(top));
+          outfit.score += top.score;
+          usedInOutfit.add(top.id);
+        }
+        const bottom = pickCandidate(byCategory('BOTTOM'), i);
+        if (bottom) {
+          outfit.items.push(formatItem(bottom));
+          outfit.score += bottom.score;
+          usedInOutfit.add(bottom.id);
         }
       }
 
-      // Add outerwear if cold
+      // Shoes
+      const shoe = pickCandidate(byCategory('SHOES'), i);
+      if (shoe) {
+        outfit.items.push(formatItem(shoe));
+        outfit.score += shoe.score;
+        usedInOutfit.add(shoe.id);
+      }
+
+      // Outerwear if cold (temp < 15°C)
       if (weather && weather.temp < 15) {
-        const outerwear = scored
-          .filter((item) => item.category === 'OUTERWEAR' && !usedItemIds.has(item.id))
-          .sort((a, b) => b.score - a.score);
-        if (outerwear.length > 0) {
-          const topN = Math.min(3, outerwear.length);
-          const pick = outerwear[Math.floor(Math.random() * topN)];
-          outfit.items.push({
-            id: pick.id,
-            name: pick.name,
-            category: pick.category,
-            colorFamily: pick.colorFamily,
-            thumbnail: pick.images[0]?.thumbnailPath ?? null,
-          });
-          usedItemIds.add(pick.id);
+        const outerwear = pickCandidate(byCategory('OUTERWEAR'), i);
+        if (outerwear) {
+          outfit.items.push(formatItem(outerwear));
+          usedInOutfit.add(outerwear.id);
         }
+      }
+
+      // Optional: bag
+      const bag = pickCandidate(byCategory('BAG'), i);
+      if (bag) {
+        outfit.items.push(formatItem(bag));
+        usedInOutfit.add(bag.id);
       }
 
       if (outfit.items.length > 0) {
