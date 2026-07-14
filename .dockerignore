@@ -8,3 +8,4 @@ dist
 .expo
 .turbo
 data
+apps/api/data

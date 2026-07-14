@@ -1,7 +1,9 @@
 services:
   web:
-    environment:
-      EXPO_PUBLIC_API_URL: ${TUNNEL_API_URL:-https://your-api.example.com}
+    build:
+      args:
+        # Static bundle must be built against the public API URL
+        EXPO_PUBLIC_API_URL: ${TUNNEL_API_URL:-https://your-api.example.com}
 
   tunnel:
     image: cloudflare/cloudflared:latest
