@@ -148,9 +148,12 @@ export default function AnalyticsScreen() {
           <>
             {costPerWear.bestValue.length > 0 && (
               <View className="mb-4">
-                <Text className="text-xs font-semibold text-green-600 dark:text-green-400 mb-2">
-                  💰 最划算（每次成本最低）
-                </Text>
+                <View className="flex-row items-center gap-1 mb-2">
+                  <Ionicons name="wallet-outline" size={14} color="#16a34a" />
+                  <Text className="text-xs font-semibold text-green-600 dark:text-green-400">
+                    最划算（每次成本最低）
+                  </Text>
+                </View>
                 {costPerWear.bestValue.map((item: any) => (
                   <CostRow key={item.id} item={item} highlight="good" />
                 ))}
@@ -158,9 +161,12 @@ export default function AnalyticsScreen() {
             )}
             {costPerWear.worstValue.length > 0 && (
               <View>
-                <Text className="text-xs font-semibold text-red-500 dark:text-red-400 mb-2">
-                  🔥 最浪費（每次成本最高）
-                </Text>
+                <View className="flex-row items-center gap-1 mb-2">
+                  <Ionicons name="flame-outline" size={14} color="#ef4444" />
+                  <Text className="text-xs font-semibold text-red-500 dark:text-red-400">
+                    最浪費（每次成本最高）
+                  </Text>
+                </View>
                 {costPerWear.worstValue.map((item: any) => (
                   <CostRow key={item.id} item={item} highlight="bad" />
                 ))}
