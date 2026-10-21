@@ -297,12 +297,13 @@ export async function planRoutes(app: FastifyInstance) {
 
     const forecast = await forecastForRange(r.from, r.to, parsed.data.lat, parsed.data.lon);
     const scoredBySeasons = new Map<string, ScoredItem[]>();
-    const getScored = async (seasons: string[]) => {
-      const k = seasons.join(',');
+    const getScored = async (seasons: string[], date: string) => {
+      // 季外篩選依「計畫那天」的季節；同月份且同溫度季節的日子共用一次查詢
+      const k = `${seasons.join(',')}|${date === today ? 'today' : date.slice(5, 7)}`;
       if (!scoredBySeasons.has(k)) {
         scoredBySeasons.set(
           k,
-          await loadScoredItems(userId, { targetSeasons: seasons, occasion: parsed.data.occasion }),
+          await loadScoredItems(userId, { targetSeasons: seasons, occasion: parsed.data.occasion, forDates: [date] }),
         );
       }
       return scoredBySeasons.get(k)!;
@@ -319,7 +320,7 @@ export async function planRoutes(app: FastifyInstance) {
       }
       const fc = forecastFor(forecast, date);
       const temp = fc ? (fc.min + fc.max) / 2 : null;
-      const scored = await getScored(temp !== null ? temperatureToSeason(temp) : []);
+      const scored = await getScored(temp !== null ? temperatureToSeason(temp) : [], date);
       const best = (cat: string, ok: (i: ScoredItem) => boolean = () => true) =>
         scored.filter((i) => i.category === cat && ok(i)).sort((a, b) => b.score - a.score)[0] ?? null;
 

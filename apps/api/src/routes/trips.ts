@@ -322,7 +322,10 @@ export async function tripRoutes(app: FastifyInstance) {
       return ds.length === 1 ? `已排入 ${mdLabel(ds[0])} 計畫` : `已排入 ${ds.length} 天計畫（${mdLabel(ds[0])} 起）`;
     };
 
-    const scored = await loadScoredItems(userId, { targetSeasons });
+    // 季外篩選依旅行日期推算季節；同一趟跨季取聯集
+    const tripDates: string[] = [];
+    for (let i = 0; i < days && i < 60; i++) tripDates.push(addDays(start, i));
+    const scored = await loadScoredItems(userId, { targetSeasons, forDates: tripDates });
     const ranked = (cat: string) =>
       scored
         .filter((i) => i.category === cat && !keptIds.has(i.id))

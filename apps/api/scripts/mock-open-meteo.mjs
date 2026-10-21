@@ -32,4 +32,5 @@ const srv = http.createServer((req, res) => {
   }
   res.statusCode = 404; res.end('{}');
 });
-srv.listen(3016, '127.0.0.1', () => console.log('mock open-meteo :3016'));
+const MOCK_PORT = Number(process.env.MOCK_PORT || 3016);
+srv.listen(MOCK_PORT, '127.0.0.1', () => console.log('mock open-meteo :' + MOCK_PORT));
