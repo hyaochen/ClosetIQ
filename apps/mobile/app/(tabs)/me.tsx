@@ -179,7 +179,7 @@ export default function MeScreen() {
         <ListRow index="02" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
         {backfill?.enabled ? (
           <ListRow
-            index={String.fromCharCode(160)} // 不編號（避免動到其他項目的序號），佔位對齊
+            index="-" // not numbered (avoids touching the other rows' numbers)
             onPress={() => router.push('/tidy-photos')}
             left={<Txt size={14}>整理舊照片</Txt>}
             right={<Txt size={12} tone="mute">{backfill.job?.running ? '整理中' : backfill.remaining > 0 ? `${backfill.remaining} 張未去背` : '都已去背'}</Txt>}
