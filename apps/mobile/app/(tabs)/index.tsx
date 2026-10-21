@@ -176,7 +176,7 @@ export default function TodayScreen() {
         </View>
       ) : (
         <View>
-          <View style={{ height: 262, backgroundColor: c.card, flexDirection: 'row', flexWrap: 'wrap', padding: 8 }}>
+          <View style={{ height: 262, backgroundColor: c.tile, flexDirection: 'row', flexWrap: 'wrap', padding: 8 }}>
             {current.items.map((it) => (
               <Pressable
                 key={it.id}

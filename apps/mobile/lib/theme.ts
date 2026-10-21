@@ -7,7 +7,8 @@ import { useThemeStore } from './theme-store';
  */
 export const lightColors = {
   paper: '#F4F0E8', // 紙：頁面底
-  card: '#E9E2D4', // 卡：衣物圖底、卡片
+  card: '#E9E2D4', // 卡：卡片底
+  tile: '#E9E2D4', // 衣物圖底（淺色同卡色）
   ink: '#1A1917', // 墨：主文字、粗線
   mute: '#5E5A53', // 灰字
   line: '#CFC7B8', // 細線
@@ -21,6 +22,7 @@ export const lightColors = {
 export const darkColors: Colors = {
   paper: '#161513',
   card: '#242220',
+  tile: '#A39C90', // 衣物圖底：較亮暖灰，黑色與白色衣物都看得清楚
   ink: '#EDE7DC',
   mute: '#A59E92',
   line: '#3D3933',

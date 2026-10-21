@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useColors } from '@/lib/theme';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, tileUrl } from '@/lib/images';
 import { localDateString } from '@/lib/queries';
 import {
   MONTH_EN, MONTH_ZH, WEEKDAYS_MON, pad, shiftMonth, useJournalMonth, useMonthlyRecap, uploadOotdForDate, pct,
@@ -131,7 +131,7 @@ export default function JournalScreen() {
                 accessibilityLabel={`${mon} 月 ${d} 日${has ? (photo ? '，有穿搭照片' : '') + `，穿了 ${count} 件` : '，沒有紀錄'}`}
                 style={{
                   flex: 1,
-                  backgroundColor: has ? c.card : 'transparent',
+                  backgroundColor: has ? c.tile : 'transparent',
                   borderWidth: isToday ? 2 : 1,
                   borderColor: isToday ? c.accent : future ? c.card : c.line,
                   overflow: 'hidden',
@@ -148,7 +148,7 @@ export default function JournalScreen() {
                     ) : null}
                     {thumbs.map((t, ti) => (
                       <View key={ti} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 1 }}>
-                        {t ? <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" /> : <View style={{ flex: 1, backgroundColor: c.line }} />}
+                        {t ? <Image source={{ uri: tileUrl(t) }} style={{ flex: 1 }} contentFit="contain" /> : <View style={{ flex: 1, backgroundColor: c.line }} />}
                       </View>
                     ))}
                   </View>

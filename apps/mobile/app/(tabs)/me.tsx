@@ -179,15 +179,15 @@ export default function MeScreen() {
         <ListRow index="02" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
         {backfill?.enabled ? (
           <ListRow
-            index="-" // not numbered (avoids touching the other rows' numbers)
+            index="03"
             onPress={() => router.push('/tidy-photos')}
             left={<Txt size={14}>整理舊照片</Txt>}
             right={<Txt size={12} tone="mute">{backfill.job?.running ? '整理中' : backfill.remaining > 0 ? `${backfill.remaining} 張未去背` : '都已去背'}</Txt>}
           />
         ) : null}
-        <ListRow index="03" onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
+        <ListRow index={backfill?.enabled ? '04' : '03'} onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
         <ListRow
-          index="04"
+          index={backfill?.enabled ? '05' : '04'}
           chevron={false}
           left={<Txt size={14}>穿後自動標記待洗</Txt>}
           right={
@@ -203,7 +203,7 @@ export default function MeScreen() {
           }
           minHeight={56}
         />
-        <ListRow index="05" onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
+        <ListRow index={backfill?.enabled ? '06' : '05'} onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
       </View>
 
       <PickerSheet

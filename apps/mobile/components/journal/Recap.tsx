@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { RecapCore, RecapItem, RecapPair } from '@closet/shared';
 import { useColors } from '@/lib/theme';
-import { imageUrl } from '@/lib/images';
+import { tileUrl } from '@/lib/images';
 import { Txt, Numeral, GarmentTile } from '@/components/ui';
 
 /** 與上期比較：箭頭圖示 + 文字（上升/下降/持平） */
@@ -43,8 +43,8 @@ export function TopPairRow({ pair, rank }: { pair: RecapPair; rank: number }) {
       <Numeral size={18} tone="mute" style={{ width: 20 }}>{String(rank)}</Numeral>
       <View style={{ flexDirection: 'row', gap: 2 }}>
         {pair.items.map((p) => (
-          <View key={p.id} style={{ width: 44, height: 44, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
-            {p.thumbnailPath ? <Image source={{ uri: imageUrl(p.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <Ionicons name="shirt-outline" size={18} color={c.mute} />}
+          <View key={p.id} style={{ width: 44, height: 44, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center' }}>
+            {p.thumbnailPath ? <Image source={{ uri: tileUrl(p.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <Ionicons name="shirt-outline" size={18} color={c.mute} />}
           </View>
         ))}
       </View>

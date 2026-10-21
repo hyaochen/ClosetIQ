@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { tileUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -236,9 +236,9 @@ export default function PlanDayScreen() {
                   >
                     <View style={{ width: 148, flexDirection: 'row', gap: 4 }}>
                       {thumbs.map((t, i) => (
-                        <View key={i} style={{ width: 34, height: 34, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <View key={i} style={{ width: 34, height: 34, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {t ? (
-                            <Image source={{ uri: imageUrl(t) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+                            <Image source={{ uri: tileUrl(t) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
                           ) : (
                             <Ionicons name="shirt-outline" size={16} color={c.mute} />
                           )}

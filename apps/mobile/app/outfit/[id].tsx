@@ -25,9 +25,7 @@ export default function OutfitDetailScreen() {
     enabled: !!id,
   });
   const outfit = data?.outfit;
-  // 詳情 API 的 wearLogs 只取最近 10 筆，總次數從列表的 _count 取
-  const { data: listData } = useQuery({ queryKey: ['outfits', 'wear-count'], queryFn: () => api('/api/outfits'), enabled: !!id });
-  const totalWears: number | undefined = listData?.outfits?.find((o: any) => o.id === id)?._count?.wearLogs;
+  const totalWears: number | undefined = data?.outfit?._count?.wearLogs;
 
   const handleWearToday = async () => {
     if (!outfit) return;

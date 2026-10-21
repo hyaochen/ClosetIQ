@@ -3,7 +3,7 @@ import { View, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { imageUrl } from '@/lib/images';
+import { tileUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -207,9 +207,9 @@ function DayRow({
       {day.plan ? (
         <View style={{ flex: 1, flexDirection: 'row', gap: 4, alignItems: 'center', overflow: 'hidden' }}>
           {shown.map((it, i) => (
-            <View key={it.id} style={{ width: TILE, height: TILE, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <View key={it.id} style={{ width: TILE, height: TILE, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {it.thumbnail ? (
-                <Image source={{ uri: imageUrl(it.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+                <Image source={{ uri: tileUrl(it.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
               ) : (
                 <Ionicons name="shirt-outline" size={20} color={c.mute} />
               )}

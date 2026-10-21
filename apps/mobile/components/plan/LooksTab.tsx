@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, tileUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { Txt, Serif, Button } from '@/components/ui';
 
@@ -50,7 +50,7 @@ export function LooksTab({ maxWidth }: { maxWidth: number }) {
             accessibilityLabel={name}
             style={({ pressed }) => ({ width: cardWidth, gap: 6, opacity: pressed ? 0.75 : 1 })}
           >
-            <View style={{ height: 196, backgroundColor: c.card, overflow: 'hidden' }}>
+            <View style={{ height: 196, backgroundColor: c.tile, overflow: 'hidden' }}>
               {o.coverThumbPath ? (
                 <Image source={{ uri: imageUrl(o.coverThumbPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
               ) : thumbs.length === 0 ? (
@@ -62,7 +62,7 @@ export function LooksTab({ maxWidth }: { maxWidth: number }) {
                   {thumbs.map((t, i) => (
                     <View key={i} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 3 }}>
                       {t ? (
-                        <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
+                        <Image source={{ uri: tileUrl(t) }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
                       ) : (
                         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                           <Ionicons name="shirt-outline" size={20} color={c.mute} />

@@ -133,4 +133,17 @@ ok(r.s === 200 && r.d.log.photoThumbnailPath === null && countFiles(dirThumb) ==
 const before2 = countFiles(dirThumb);
 r = await j('DELETE', `/api/wear-logs/${l20.id}`, ta);
 ok(r.s === 200 && countFiles(dirThumb) === before2 - 1, 'DELETE wear log removes photo files');
+
+// PATCH auto-dirty: newly added TOP/BOTTOM/DRESS/UNDERWEAR go DIRTY, others do not, removed items are not restored
+{
+  const stOf = async (id) => (await j('GET', `/api/items/${id}`, ta)).d.item.laundryStatus;
+  const keep = await item('補選用白上衣', 'TOP'), drop = await item('補選用黑長褲', 'BOTTOM'), addTop = await item('補選新增格子衫', 'TOP'), addCoat = await item('補選新增大衣', 'OUTERWEAR');
+  const lg = await wl('2026-07-05', [keep.id, drop.id]);
+  ok((await stOf(keep.id)) === 'DIRTY' && (await stOf(drop.id)) === 'DIRTY', 'create log marks TOP/BOTTOM dirty');
+  await j('PUT', `/api/items/${drop.id}`, ta, { laundryStatus: 'CLEAN' });
+  r = await j('PATCH', `/api/wear-logs/${lg.id}`, ta, { itemIds: [keep.id, addTop.id, addCoat.id] });
+  ok(r.s === 200 && (await stOf(addTop.id)) === 'DIRTY', 'PATCH: newly added TOP becomes DIRTY');
+  ok((await stOf(addCoat.id)) === 'CLEAN', 'PATCH: newly added OUTERWEAR stays CLEAN');
+  ok((await stOf(drop.id)) === 'CLEAN', 'PATCH: removed item status not touched');
+}
 console.log(fails ? `FAILURES: ${fails}` : 'ALL PASS');

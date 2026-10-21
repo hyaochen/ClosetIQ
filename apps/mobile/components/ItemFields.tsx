@@ -138,7 +138,7 @@ export function PhotoBlock({
   const c = useColors();
   const total = existing.length + added.length;
   const Tile = ({ children, label, onRemove, tag }: { children: React.ReactNode; label: string; onRemove: () => void; tag?: string }) => (
-    <View style={{ width: 84, height: 84, backgroundColor: c.card }}>
+    <View style={{ width: 84, height: 84, backgroundColor: c.tile }}>
       {children}
       <Pressable
         onPress={onRemove}

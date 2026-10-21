@@ -103,7 +103,7 @@ export function ItemTray({
               onPress={() => onPick(item)}
               accessibilityRole="button"
               accessibilityLabel={`${item.name}${used ? '（已在畫布上）' : usable ? '' : '（沒有照片）'}`}
-              style={({ pressed }) => ({ width: 62, height: 62, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : usable ? 1 : 0.5 })}
+              style={({ pressed }) => ({ width: 62, height: 62, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : usable ? 1 : 0.5 })}
             >
               {path ? (
                 <Image source={{ uri: imageUrl(path) }} resizeMode="contain" style={{ width: 54, height: 54 }} accessibilityIgnoresInvertColors />

@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { ClothingCategoryLabel, type WishlistSimilarItem } from '@closet/shared';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { tileUrl } from '@/lib/images';
 import { useColors, MIN_TOUCH } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { invalidateWardrobe } from '@/lib/queries';
@@ -284,9 +284,9 @@ function SimilarRow({ s, last }: { s: WishlistSimilarItem; last: boolean }) {
         borderBottomWidth: last ? 0 : 1, borderBottomColor: c.line, opacity: pressed ? 0.65 : 1,
       })}
     >
-      <View style={{ width: 40, height: 46, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <View style={{ width: 40, height: 46, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {s.thumbnail ? (
-          <Image source={{ uri: imageUrl(s.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+          <Image source={{ uri: tileUrl(s.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
         ) : (
           <Ionicons name="shirt-outline" size={18} color={c.mute} />
         )}

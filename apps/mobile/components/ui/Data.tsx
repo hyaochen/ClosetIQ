@@ -51,7 +51,7 @@ export function GarmentTile({
   // 去背完成：透明圖放在卡色底上（卡色來自 token，深色模式自動換色）；否則用原縮圖
   const shown = tileImage(path, image);
   return (
-    <View style={[fill ? { flex: 1 } : { height }, { backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
+    <View style={[fill ? { flex: 1 } : { height }, { backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
       {shown.path ? (
         // 去背圖是貼著衣物外框裁的，留一點邊距才不會頂到卡片邊
         <View style={{ width: '100%', height: '100%', padding: shown.cutout ? 8 : 0 }}>
@@ -75,7 +75,7 @@ export function BarMeter({ ratio, height = 6 }: { ratio: number; height?: number
   const c = useColors();
   const pct = Math.max(0, Math.min(1, ratio)) * 100;
   return (
-    <View style={{ flex: 1, height, backgroundColor: c.card }}>
+    <View style={{ flex: 1, height, backgroundColor: c.tile }}>
       <View style={{ height, width: `${pct}%`, backgroundColor: c.ink }} />
     </View>
   );

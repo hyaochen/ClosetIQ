@@ -9,6 +9,7 @@ module.exports = {
       colors: {
         paper: { DEFAULT: '#F4F0E8', dark: '#161513' },
         card: { DEFAULT: '#E9E2D4', dark: '#242220' },
+        tile: { DEFAULT: '#E9E2D4', dark: '#A39C90' },
         ink: { DEFAULT: '#1A1917', dark: '#EDE7DC' },
         mute: { DEFAULT: '#5E5A53', dark: '#A59E92' },
         line: { DEFAULT: '#CFC7B8', dark: '#3D3933' },

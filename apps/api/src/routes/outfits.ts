@@ -45,6 +45,7 @@ export async function outfitRoutes(app: FastifyInstance) {
           orderBy: { layerOrder: 'asc' },
         },
         wearLogs: { orderBy: { date: 'desc' }, take: 10 },
+        _count: { select: { wearLogs: true } },
       },
     });
 

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { updateWearLogSchema, wearLogPhotoCreateQuerySchema } from '@closet/shared';
+import { updateWearLogSchema, wearLogPhotoCreateQuerySchema, AUTO_DIRTY_CATEGORIES } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
 import { dayStringToDate, taipeiToday } from '../lib/taipei-date.js';
 import { deleteImageFiles, processAndSaveImage } from '../services/image.service.js';
@@ -159,12 +159,25 @@ export async function journalRoutes(app: FastifyInstance) {
 
     const log = await prisma.$transaction(async (tx) => {
       if (itemIds) {
+        const before = await tx.wearLogItem.findMany({ where: { wearLogId: id }, select: { clothingItemId: true } });
+        const beforeIds = new Set(before.map((b) => b.clothingItemId));
         await tx.wearLogItem.deleteMany({ where: { wearLogId: id } });
         const uniq = [...new Set(itemIds)];
         if (uniq.length > 0) {
           await tx.wearLogItem.createMany({
             data: uniq.map((clothingItemId) => ({ wearLogId: id, clothingItemId })),
           });
+        }
+        // 新加入的衣物套用與建立紀錄相同的自動待洗規則；原本就在的與被移除的不動
+        const me = await tx.user.findUnique({ where: { id: userId }, select: { autoDirtyOnWear: true } });
+        if (me?.autoDirtyOnWear !== false) {
+          const added = uniq.filter((x) => !beforeIds.has(x));
+          if (added.length > 0) {
+            await tx.clothingItem.updateMany({
+              where: { id: { in: added }, userId, category: { in: [...AUTO_DIRTY_CATEGORIES] as any } },
+              data: { laundryStatus: 'DIRTY' },
+            });
+          }
         }
       }
       return tx.wearLog.update({ where: { id }, data: fields, include: journalLogInclude });

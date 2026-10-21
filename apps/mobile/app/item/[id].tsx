@@ -141,7 +141,7 @@ export default function ItemDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
         <View style={{ width: '100%', maxWidth: 560, alignSelf: 'center' }}>
           {/* 圖片 */}
-          <View style={{ height: 292, backgroundColor: c.card }}>
+          <View style={{ height: 292, backgroundColor: c.tile }}>
             {images.length > 0 ? (
               <ScrollView
                 horizontal

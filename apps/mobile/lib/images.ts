@@ -56,3 +56,8 @@ export function fullImage(img?: ImageLike | null): { path: string | null; cutout
   if (img && hasCutout(img)) return { path: img.cutoutPath!, cutout: true };
   return { path: img?.displayPath ?? img?.thumbnailPath ?? null, cutout: false };
 }
+
+/** 縮圖路徑 -> 完整網址；去背完成的圖自動換成去背縮圖（全站一致）。 */
+export function tileUrl(path: string): string {
+  return imageUrl(tileImage(path).path ?? path);
+}
