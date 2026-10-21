@@ -206,5 +206,6 @@ export const CutoutStatus = {
   PENDING: 'PENDING', // 排隊／處理中
   DONE: 'DONE',
   FAILED: 'FAILED',
+  SKIPPED: 'SKIPPED', // user chose the original photo; backfill leaves it alone
 } as const;
 export type CutoutStatus = (typeof CutoutStatus)[keyof typeof CutoutStatus];
