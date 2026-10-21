@@ -11,7 +11,8 @@ const PAPER = '#F4F0E8';
 const MUTE = '#5E5A53';
 const DEG = 180 / Math.PI;
 
-export type PiecePatch = Partial<Pick<EditorPiece, 'x' | 'y' | 'scale' | 'rotate'>>;
+/** 欄位可以是數值，或「由目前值算出新值」的函式（滾輪連續觸發時避免讀到舊值） */
+export type PiecePatch = Partial<Record<'x' | 'y' | 'scale' | 'rotate', number | ((cur: number) => number)>>;
 type Cb = { onSelect: (id: string | null) => void; onPatch: (id: string, patch: PiecePatch) => void };
 
 function boxStyle(p: EditorPiece, W: number, H: number): ViewStyle {
@@ -170,9 +171,9 @@ export function CanvasStage({
       ev.preventDefault();
       if (ev.shiftKey) {
         const dy = ev.deltaY || ev.deltaX;
-        cb.current.onPatch(p.itemId, { rotate: normDeg(p.rotate + dy * 0.1) });
+        cb.current.onPatch(p.itemId, { rotate: (r) => normDeg(r + dy * 0.1) });
       } else {
-        cb.current.onPatch(p.itemId, { scale: clamp(p.scale * (ev.deltaY < 0 ? 1.05 : 0.95), SCALE_MIN, SCALE_MAX) });
+        cb.current.onPatch(p.itemId, { scale: (v) => clamp(v * (ev.deltaY < 0 ? 1.05 : 0.95), SCALE_MIN, SCALE_MAX) });
       }
     };
     el.addEventListener('wheel', fn, { passive: false });

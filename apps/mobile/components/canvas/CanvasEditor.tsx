@@ -134,7 +134,21 @@ export function CanvasEditor({ outfitId, presetItemIds }: { outfitId?: string; p
   const signature = useMemo(() => JSON.stringify({ l: piecesToLayout(pieces, background, W, H), m: meta }), [pieces, background, meta, W, H]);
   const dirty = ready && signature !== baseline;
 
-  const patch = useCallback((id: string, p: PiecePatch) => setPieces((ps) => ps.map((x) => (x.itemId === id ? { ...x, ...p } : x))), []);
+  const patch = useCallback(
+    (id: string, p: PiecePatch) =>
+      setPieces((ps) =>
+        ps.map((x) => {
+          if (x.itemId !== id) return x;
+          const next = { ...x };
+          for (const k of Object.keys(p) as (keyof PiecePatch)[]) {
+            const v = p[k];
+            if (v !== undefined) next[k] = typeof v === 'function' ? v(x[k]) : v;
+          }
+          return next;
+        }),
+      ),
+    [],
+  );
 
   const handlePick = (item: any) => {
     if (pieces.some((p) => p.itemId === item.id)) {

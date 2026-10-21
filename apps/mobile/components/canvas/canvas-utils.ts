@@ -58,7 +58,7 @@ const SLOT: Record<string, { x: number; y: number; s: number }> = {
   OUTERWEAR: { x: 0.34, y: 0.34, s: 0.5 },
   BOTTOM: { x: 0.52, y: 0.66, s: 0.5 },
   DRESS: { x: 0.5, y: 0.45, s: 0.6 },
-  SHOES: { x: 0.34, y: 0.88, s: 0.3 },
+  SHOES: { x: 0.34, y: 0.83, s: 0.3 },
   BAG: { x: 0.82, y: 0.2, s: 0.28 },
   ACCESSORY: { x: 0.8, y: 0.5, s: 0.2 },
   UNDERWEAR: { x: 0.8, y: 0.5, s: 0.25 },
