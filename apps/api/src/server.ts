@@ -18,6 +18,9 @@ import { outfitRoutes } from './routes/outfits.js';
 import { wearLogRoutes } from './routes/wear-logs.js';
 import { statsRoutes } from './routes/stats.js';
 import { suggestionRoutes } from './routes/suggestions.js';
+// ---- P3 ----
+import { journalRoutes } from './routes/journal.js';
+import { recapRoutes } from './routes/recap.js';
 
 const app = Fastify({
   logger: {
@@ -60,6 +63,9 @@ async function start() {
   await app.register(wearLogRoutes);
   await app.register(statsRoutes);
   await app.register(suggestionRoutes);
+  // ---- P3 ----
+  await app.register(journalRoutes);
+  await app.register(recapRoutes);
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
