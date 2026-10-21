@@ -53,7 +53,7 @@ export default function LaundryScreen() {
         <View style={{ width: 22, height: 22, borderWidth: 1, borderColor: c.ink, backgroundColor: on ? c.ink : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
           {on ? <Ionicons name="checkmark" size={15} color={c.onInk} /> : null}
         </View>
-        <GarmentTile path={it.images?.[0]?.thumbnailPath} height={56} style={{ width: 56 }} />
+        <GarmentTile path={it.images?.[0]?.thumbnailPath} image={it.images?.[0]} height={56} style={{ width: 56 }} />
         <View style={{ flex: 1, gap: 2 }}>
           <Serif size={15} medium numberOfLines={1}>{it.name}</Serif>
           <StatusTag kind={it.laundryStatus === 'CLEANING' ? 'CLEANING' : 'DIRTY'} />

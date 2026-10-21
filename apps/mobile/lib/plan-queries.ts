@@ -5,12 +5,13 @@ import type { ForecastDay } from '@closet/shared';
 import { api } from './api';
 import { queryClient } from './query-client';
 import { localDateString } from './queries';
+import type { TileLike } from './images';
 
 // ---- P5：穿搭計畫與旅行打包 ----
 
 export type Forecast = ForecastDay;
 
-export type PlanItem = { id: string; name: string; category: string; colorFamily: string; thumbnail: string | null };
+export type PlanItem = TileLike & { id: string; name: string; category: string; colorFamily: string; thumbnail: string | null };
 export type Plan = { id: string; date: string; outfitId: string | null; note: string | null; items: PlanItem[] };
 export type PlanDay = { date: string; weekday: string; forecast: Forecast | null; plan: Plan | null; hasWearLog: boolean };
 export type WeekCell = { date: string; weekday: string; forecast: Forecast | null; hasPlan: boolean; hasWearLog: boolean };
@@ -27,7 +28,7 @@ export type TripSummary = {
   itemCount: number;
   packedCount: number;
 };
-export type TripItem = {
+export type TripItem = TileLike & {
   id: string;
   clothingItemId: string | null;
   name: string;

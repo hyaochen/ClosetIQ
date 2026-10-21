@@ -249,7 +249,13 @@ export interface WishlistCategoryCompat {
   total: number;
 }
 
-export interface WishlistSimilarItem {
+/** 衣物小圖：後端已決定好要顯示去背縮圖或原縮圖（去背完成才用去背） */
+export interface TileFields {
+  tileThumbPath: string | null;
+  tileCutout: boolean;
+}
+
+export interface WishlistSimilarItem extends TileFields {
   id: string;
   name: string;
   category: ClothingCategory;
@@ -413,7 +419,7 @@ export interface WearLogPhotoPaths {
   photoThumbnailPath: string | null;
 }
 
-export interface JournalItemThumb {
+export interface JournalItemThumb extends TileFields {
   id: string;
   name: string;
   category: string;
@@ -444,7 +450,7 @@ export interface JournalMonthResponse {
   days: JournalDay[];
 }
 
-export interface RecapItem {
+export interface RecapItem extends TileFields {
   id: string;
   name: string;
   category: string;
@@ -454,8 +460,8 @@ export interface RecapItem {
 
 export interface RecapPair {
   items: [
-    { id: string; name: string; thumbnailPath: string | null },
-    { id: string; name: string; thumbnailPath: string | null },
+    { id: string; name: string; thumbnailPath: string | null } & TileFields,
+    { id: string; name: string; thumbnailPath: string | null } & TileFields,
   ];
   count: number;
 }

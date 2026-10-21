@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { ClothingCategoryLabel, type WishlistSimilarItem } from '@closet/shared';
 import { api } from '@/lib/api';
-import { tileUrl, useImagesVersion } from '@/lib/images';
+import { imageUrl } from '@/lib/images';
 import { useColors, MIN_TOUCH } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { invalidateWardrobe } from '@/lib/queries';
@@ -273,7 +273,6 @@ function similarSentence(strong: WishlistSimilarItem[], weak: WishlistSimilarIte
 }
 
 function SimilarRow({ s, last }: { s: WishlistSimilarItem; last: boolean }) {
-  useImagesVersion();
   const c = useColors();
   return (
     <Pressable
@@ -286,8 +285,8 @@ function SimilarRow({ s, last }: { s: WishlistSimilarItem; last: boolean }) {
       })}
     >
       <View style={{ width: 40, height: 46, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {s.thumbnail ? (
-          <Image source={{ uri: tileUrl(s.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+        {s.tileThumbPath ? (
+          <Image source={{ uri: imageUrl(s.tileThumbPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
         ) : (
           <Ionicons name="shirt-outline" size={18} color={c.mute} />
         )}

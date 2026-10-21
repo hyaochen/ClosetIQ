@@ -36,7 +36,7 @@ export default function EditItemScreen() {
       const item = data.item;
       form.fill(item);
       setExistingImages(
-        (item.images || []).map((img: any) => ({ id: img.id, thumbnailPath: img.thumbnailPath, isPrimary: img.isPrimary }))
+        (item.images || []).map((img: any) => ({ id: img.id, thumbnailPath: img.thumbnailPath, isPrimary: img.isPrimary, cutoutStatus: img.cutoutStatus, cutoutPath: img.cutoutPath, cutoutThumbPath: img.cutoutThumbPath }))
       );
       setInitialized(true);
     }

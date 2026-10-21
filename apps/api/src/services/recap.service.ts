@@ -1,4 +1,5 @@
 import type { RecapCore, RecapItem, RecapPair } from '@closet/shared';
+import { TILE_IMAGE_SELECT, tileFields } from '../lib/tile.js';
 import { prisma } from '../lib/prisma.js';
 import { dateToDayString } from '../lib/taipei-date.js';
 
@@ -33,7 +34,7 @@ export async function computeRecap(
               id: true,
               name: true,
               category: true,
-              images: { where: { isPrimary: true }, take: 1, select: { thumbnailPath: true } },
+              images: { where: { isPrimary: true }, take: 1, select: TILE_IMAGE_SELECT },
             },
           },
         },
@@ -51,7 +52,7 @@ export async function computeRecap(
   });
 
   const days = new Set<string>();
-  const itemMap = new Map<string, { name: string; category: string; thumbnailPath: string | null; count: number }>();
+  const itemMap = new Map<string, { name: string; category: string; thumbnailPath: string | null; tileThumbPath: string | null; tileCutout: boolean; count: number }>();
   const pairMap = new Map<string, { a: string; b: string; count: number }>();
 
   for (const log of logs) {
@@ -67,6 +68,7 @@ export async function computeRecap(
           name: ci.name,
           category: ci.category,
           thumbnailPath: ci.images[0]?.thumbnailPath ?? null,
+          ...tileFields(ci.images[0]),
           count: 1,
         });
     }
@@ -99,8 +101,8 @@ export async function computeRecap(
       const ib = itemMap.get(p.b)!;
       return {
         items: [
-          { id: p.a, name: ia.name, thumbnailPath: ia.thumbnailPath },
-          { id: p.b, name: ib.name, thumbnailPath: ib.thumbnailPath },
+          { id: p.a, name: ia.name, thumbnailPath: ia.thumbnailPath, tileThumbPath: ia.tileThumbPath, tileCutout: ia.tileCutout },
+          { id: p.b, name: ib.name, thumbnailPath: ib.thumbnailPath, tileThumbPath: ib.tileThumbPath, tileCutout: ib.tileCutout },
         ],
         count: p.count,
       };

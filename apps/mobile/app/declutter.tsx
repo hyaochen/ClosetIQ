@@ -76,7 +76,7 @@ export default function DeclutterScreen() {
 
       {current ? (
         <View style={{ flex: 1, marginTop: 12 }}>
-          <GarmentTile path={current.thumbnail} fill style={{ minHeight: 220 }} />
+          <GarmentTile path={current.thumbnail} tile={current} fill style={{ minHeight: 220 }} />
           <Serif size={24} style={{ marginTop: 14, lineHeight: 30 }} numberOfLines={2}>{current.name}</Serif>
           <Txt size={12} tone="mute">
             {`${ClothingCategoryLabel[current.category as keyof typeof ClothingCategoryLabel] ?? current.category} · ${ConditionLabel[current.condition as keyof typeof ConditionLabel] ?? ''}`}

@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useColors } from '@/lib/theme';
-import { imageUrl, tileUrl, useImagesVersion } from '@/lib/images';
+import { imageUrl } from '@/lib/images';
 import { localDateString } from '@/lib/queries';
 import {
   MONTH_EN, MONTH_ZH, WEEKDAYS_MON, pad, shiftMonth, useJournalMonth, useMonthlyRecap, uploadOotdForDate, pct,
@@ -16,7 +16,6 @@ import { Delta, TopLists } from '@/components/journal/Recap';
 import type { JournalDay } from '@closet/shared';
 
 export default function JournalScreen() {
-  useImagesVersion();
   const c = useColors();
   const params = useLocalSearchParams<{ month?: string }>();
   const todayKey = useMemo(() => localDateString(), []);
@@ -120,7 +119,7 @@ export default function JournalScreen() {
           const future = key > todayKey;
           const photo = day?.photoThumbnailPath;
           const thumbs: (string | null)[] = has && !photo
-            ? day.logs.flatMap((l) => l.items.map((it) => it.thumbnailPath)).slice(0, 4)
+            ? day.logs.flatMap((l) => l.items.map((it) => it.tileThumbPath)).slice(0, 4)
             : [];
           const count = has ? day.logs.reduce((a, l) => a + l.items.length, 0) : 0;
           return (
@@ -149,7 +148,7 @@ export default function JournalScreen() {
                     ) : null}
                     {thumbs.map((t, ti) => (
                       <View key={ti} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 1 }}>
-                        {t ? <Image source={{ uri: tileUrl(t) }} style={{ flex: 1 }} contentFit="contain" /> : <View style={{ flex: 1, backgroundColor: c.line }} />}
+                        {t ? <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" /> : <View style={{ flex: 1, backgroundColor: c.line }} />}
                       </View>
                     ))}
                   </View>

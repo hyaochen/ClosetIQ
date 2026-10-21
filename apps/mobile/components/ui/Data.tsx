@@ -3,7 +3,7 @@ import { View, Pressable, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/lib/theme';
-import { imageUrl, tileImage, type ImageLike, useImagesVersion } from '@/lib/images';
+import { imageUrl, tileImage, type ImageLike, type TileLike } from '@/lib/images';
 import { Txt, Numeral } from './Text';
 
 /** 斜體大數字 + 小標，格間直線分隔，上下 1px 墨線 */
@@ -27,6 +27,7 @@ export function StatRow({ stats }: { stats: { value: string | number; label: str
 /** 衣物縮圖：卡色底 + 圖片 contain；沒有圖時顯示圖示 */
 export function GarmentTile({
   path,
+  tile,
   image,
   height = 176,
   fill,
@@ -35,9 +36,11 @@ export function GarmentTile({
   style,
   fit = 'contain',
 }: {
-  /** 縮圖路徑；若該張圖已去背（資料來自 api()）會自動改用去背圖 */
+  /** 原縮圖路徑（沒有 tile / image 時的後備） */
   path?: string | null;
-  /** 也可直接傳整個 ClothingImage 物件 */
+  /** 後端已決定好的小圖欄位（tileThumbPath / tileCutout）：只有縮圖路徑的 API 物件直接整個傳進來 */
+  tile?: TileLike | null;
+  /** 完整 ClothingImage 物件（含去背欄位）：有去背完成就用去背縮圖 */
   image?: ImageLike | null;
   height?: number;
   /** 填滿父容器（flex: 1）而非固定高度 */
@@ -47,10 +50,9 @@ export function GarmentTile({
   style?: ViewStyle;
   fit?: 'contain' | 'cover';
 }) {
-  useImagesVersion();
   const c = useColors();
   // 去背完成：透明圖放在卡色底上（卡色來自 token，深色模式自動換色）；否則用原縮圖
-  const shown = tileImage(path, image);
+  const shown = tileImage(path, image, tile);
   return (
     <View style={[fill ? { flex: 1 } : { height }, { backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
       {shown.path ? (

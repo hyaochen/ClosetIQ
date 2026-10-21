@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { TILE_IMAGE_SELECT, tileFields, type TileFields } from '../lib/tile.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -262,7 +263,7 @@ export async function wishlistRoutes(app: FastifyInstance) {
         pattern: true,
         seasons: true,
         occasions: true,
-        images: { where: { isPrimary: true }, take: 1, select: { thumbnailPath: true } },
+        images: { where: { isPrimary: true }, take: 1, select: TILE_IMAGE_SELECT },
         _count: { select: { wearLogItems: true } },
         wearLogItems: {
           where: { wearLog: { date: { gte: since } } },
@@ -271,9 +272,9 @@ export async function wishlistRoutes(app: FastifyInstance) {
       },
     });
 
-    const thumbs = new Map<string, string | null>();
+    const thumbs = new Map<string, TileFields & { thumbnail: string | null }>();
     const wardrobe: WardrobeItem[] = rows.map((r) => {
-      thumbs.set(r.id, r.images[0]?.thumbnailPath ?? null);
+      thumbs.set(r.id, { thumbnail: r.images[0]?.thumbnailPath ?? null, ...tileFields(r.images[0]) });
       return {
         id: r.id,
         name: r.name,
@@ -311,7 +312,9 @@ export async function wishlistRoutes(app: FastifyInstance) {
         subcategory: s.subcategory,
         colorFamily: s.colorFamily,
         matchType: s.matchType,
-        thumbnail: thumbs.get(s.id) ?? null,
+        thumbnail: thumbs.get(s.id)?.thumbnail ?? null,
+        tileThumbPath: thumbs.get(s.id)?.tileThumbPath ?? null,
+        tileCutout: thumbs.get(s.id)?.tileCutout ?? false,
         recentWearCount: s.recentWearCount,
         totalWearCount: s.totalWearCount,
       })),

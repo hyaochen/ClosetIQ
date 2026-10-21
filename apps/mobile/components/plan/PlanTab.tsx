@@ -3,7 +3,7 @@ import { View, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { tileUrl, useImagesVersion } from '@/lib/images';
+import { imageUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -171,7 +171,6 @@ function DayRow({
   wearing: boolean;
   onWear: () => void;
 }) {
-  useImagesVersion();
   const c = useColors();
   const isToday = day.date === today;
   const { d } = parseYmd(day.date);
@@ -209,8 +208,8 @@ function DayRow({
         <View style={{ flex: 1, flexDirection: 'row', gap: 4, alignItems: 'center', overflow: 'hidden' }}>
           {shown.map((it, i) => (
             <View key={it.id} style={{ width: TILE, height: TILE, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {it.thumbnail ? (
-                <Image source={{ uri: tileUrl(it.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+              {it.tileThumbPath ? (
+                <Image source={{ uri: imageUrl(it.tileThumbPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
               ) : (
                 <Ionicons name="shirt-outline" size={20} color={c.mute} />
               )}

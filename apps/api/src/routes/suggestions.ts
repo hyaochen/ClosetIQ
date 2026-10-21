@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { tileFields } from '../lib/tile.js';
 import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
 import { loadScoredItems } from '../services/scoring.service.js';
 import { getCurrentWeather } from '../services/weather.service.js';
@@ -48,6 +49,7 @@ export async function suggestionRoutes(app: FastifyInstance) {
       category: item.category,
       colorFamily: item.colorFamily,
       thumbnail: item.images[0]?.thumbnailPath ?? null,
+      ...tileFields(item.images[0]),
     });
 
     // Build 6 outfit suggestions

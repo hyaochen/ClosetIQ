@@ -124,7 +124,7 @@ export default function OutfitDetailScreen() {
                 accessibilityLabel={item?.name}
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 76, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.line, opacity: pressed ? 0.7 : 1 })}
               >
-                <GarmentTile path={trayThumbPath(primaryImage(item))} height={60} style={{ width: 60 }} />
+                <GarmentTile path={trayThumbPath(primaryImage(item))} image={primaryImage(item)} height={60} style={{ width: 60 }} />
                 <View style={{ flex: 1 }}>
                   <Serif size={15} medium numberOfLines={1}>{item?.name}</Serif>
                   <Txt size={12} tone="mute">{ClothingCategoryLabel[item?.category as keyof typeof ClothingCategoryLabel] || item?.category}</Txt>

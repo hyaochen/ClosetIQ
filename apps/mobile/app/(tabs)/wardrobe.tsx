@@ -214,6 +214,7 @@ export default function WardrobeScreen() {
                 >
                   <GarmentTile
                     path={item.images?.[0]?.thumbnailPath}
+                    image={item.images?.[0]}
                     height={176}
                     dim={off && !status}
                     overlay={status ? <StatusTag kind={status} /> : null}

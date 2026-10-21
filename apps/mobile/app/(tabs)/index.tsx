@@ -13,10 +13,11 @@ import { showAlert } from '@/lib/alert';
 import {
   Screen, Txt, Serif, Numeral, Eyebrow, Hairline, SectionHeader, Button, Chip, GarmentTile,
 } from '@/components/ui';
+import type { TileLike } from '@/lib/images';
 
 const WEEK_EN = ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.'];
 
-type SuggestionItem = { id: string; name: string; category: string; thumbnail: string | null };
+type SuggestionItem = TileLike & { id: string; name: string; category: string; thumbnail: string | null };
 type Suggestion = { items: SuggestionItem[]; score: number };
 
 function pad(n: number) {
@@ -185,7 +186,7 @@ export default function TodayScreen() {
                 accessibilityLabel={it.name}
                 style={{ width: `${100 / cols}%`, height: `${100 / rows}%`, padding: 4 }}
               >
-                <GarmentTile path={it.thumbnail} fill />
+                <GarmentTile path={it.thumbnail} tile={it} fill />
               </Pressable>
             ))}
             <View style={{ position: 'absolute', left: 12, bottom: 10, backgroundColor: c.paper, paddingHorizontal: 8, paddingVertical: 4 }}>

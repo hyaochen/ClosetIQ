@@ -178,7 +178,7 @@ export default function JournalDayScreen() {
                       accessibilityLabel={it.name}
                       style={{ width: '25%', padding: 4 }}
                     >
-                      <GarmentTile path={it.thumbnailPath} height={78} />
+                      <GarmentTile path={it.thumbnailPath} tile={it} height={78} />
                       <Txt size={11} numberOfLines={1} style={{ lineHeight: 15, marginTop: 3 }}>{it.name}</Txt>
                     </Pressable>
                   ))}

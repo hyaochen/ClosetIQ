@@ -113,7 +113,7 @@ export function ItemPicker({
                       accessibilityState={{ selected: on }}
                       style={{ borderWidth: on ? 2 : 1, borderColor: on ? c.accent : c.line }}
                     >
-                      <GarmentTile path={it.images?.[0]?.thumbnailPath} height={104} />
+                      <GarmentTile path={it.images?.[0]?.thumbnailPath} image={it.images?.[0]} height={104} />
                       {on ? (
                         <View style={{ position: 'absolute', right: 0, top: 0, width: 22, height: 22, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
                           <Ionicons name="checkmark" size={15} color={c.onAccent} />

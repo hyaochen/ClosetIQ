@@ -1,4 +1,5 @@
 import type { JournalDay, JournalLog, JournalMonthResponse } from '@closet/shared';
+import { TILE_IMAGE_SELECT, tileFields } from '../lib/tile.js';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { dateToDayString, monthDateRange } from '../lib/taipei-date.js';
@@ -13,7 +14,7 @@ export const journalLogInclude = {
           name: true,
           category: true,
           colors: true,
-          images: { where: { isPrimary: true }, take: 1, select: { thumbnailPath: true } },
+          images: { where: { isPrimary: true }, take: 1, select: TILE_IMAGE_SELECT },
         },
       },
     },
@@ -37,6 +38,7 @@ export function toJournalLog(log: LogWithItems): JournalLog {
       category: li.clothingItem.category,
       colors: li.clothingItem.colors,
       thumbnailPath: li.clothingItem.images[0]?.thumbnailPath ?? null,
+      ...tileFields(li.clothingItem.images[0]),
     })),
   };
 }

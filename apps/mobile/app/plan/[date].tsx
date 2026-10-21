@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
-import { tileUrl, useImagesVersion } from '@/lib/images';
+import { imageTileUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -28,7 +28,6 @@ type Mode = 'outfit' | 'items';
 
 /** 安排某一天：選既有穿搭，或自己挑衣物；當天可「就穿這套」轉成穿著紀錄 */
 export default function PlanDayScreen() {
-  useImagesVersion();
   const c = useColors();
   const { date } = useLocalSearchParams<{ date: string }>();
   const today = localDateString();
@@ -169,7 +168,7 @@ export default function PlanDayScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {plan.items.map((it) => (
                 <Pressable key={it.id} onPress={() => router.push(`/item/${it.id}`)} accessibilityRole="button" accessibilityLabel={it.name} style={{ width: 84, gap: 4 }}>
-                  <GarmentTile path={it.thumbnail} height={84} />
+                  <GarmentTile path={it.thumbnail} tile={it} height={84} />
                   <Txt size={11} numberOfLines={1} style={{ lineHeight: 16 }}>{it.name}</Txt>
                 </Pressable>
               ))}
@@ -216,7 +215,7 @@ export default function PlanDayScreen() {
               </View>
             ) : (
               outfits.map((o) => {
-                const thumbs: (string | undefined)[] = (o.items ?? []).map((oi: any) => oi.clothingItem?.images?.[0]?.thumbnailPath).slice(0, 4);
+                const thumbs: (string | null)[] = (o.items ?? []).map((oi: any) => imageTileUrl(oi.clothingItem?.images?.[0])).slice(0, 4);
                 return (
                   <Pressable
                     key={o.id}
@@ -239,7 +238,7 @@ export default function PlanDayScreen() {
                       {thumbs.map((t, i) => (
                         <View key={i} style={{ width: 34, height: 34, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {t ? (
-                            <Image source={{ uri: tileUrl(t) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
+                            <Image source={{ uri: t }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
                           ) : (
                             <Ionicons name="shirt-outline" size={16} color={c.mute} />
                           )}
@@ -284,6 +283,7 @@ export default function PlanDayScreen() {
                       <View style={{ borderWidth: 2, borderColor: on ? c.ink : 'transparent' }}>
                         <GarmentTile
                           path={it.images?.[0]?.thumbnailPath}
+                          image={it.images?.[0]}
                           height={104}
                           dim={dirty}
                           overlay={dirty ? <StatusTag kind={it.laundryStatus === 'DIRTY' ? 'DIRTY' : 'CLEANING'} /> : undefined}

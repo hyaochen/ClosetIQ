@@ -12,7 +12,7 @@ import {
   ConditionLabel,
 } from '@closet/shared';
 import { api } from '@/lib/api';
-import { imageUrl, tileImage } from '@/lib/images';
+import { imageUrl, tileImage, type ImageLike } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { AI_LOW_CONFIDENCE, cleanSuggestedText, type Suggestion } from '@/lib/ai';
 import { useStorageLocations } from '@/lib/queries';
@@ -116,7 +116,7 @@ export function useItemForm() {
   };
 }
 
-export type PhotoExisting = { id: string; thumbnailPath: string; isPrimary: boolean };
+export type PhotoExisting = { id: string; thumbnailPath: string; isPrimary: boolean } & ImageLike;
 export type PhotoNew = { uri: string };
 
 /** 照片區：卡色底方塊縮圖 + 拍照 / 相簿 */
@@ -171,7 +171,7 @@ export function PhotoBlock({
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {existing.map((img, i) => (
         <Tile key={img.id} label={`第 ${i + 1} 張照片`} tag={img.isPrimary ? '主圖' : undefined} onRemove={() => onRemoveExisting?.(img.id)}>
-          <Image source={{ uri: imageUrl(tileImage(img.thumbnailPath).path ?? img.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
+          <Image source={{ uri: imageUrl(tileImage(img.thumbnailPath, img).path ?? img.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
         </Tile>
       ))}
       {added.map((img, i) => (

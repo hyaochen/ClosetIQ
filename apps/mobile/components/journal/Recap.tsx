@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { RecapCore, RecapItem, RecapPair } from '@closet/shared';
 import { useColors } from '@/lib/theme';
-import { tileUrl, useImagesVersion } from '@/lib/images';
+import { imageUrl } from '@/lib/images';
 import { Txt, Numeral, GarmentTile } from '@/components/ui';
 
 /** 與上期比較：箭頭圖示 + 文字（上升/下降/持平） */
@@ -28,7 +28,7 @@ export function TopItemRow({ item, rank }: { item: RecapItem; rank: number }) {
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.line }}>
       <Numeral size={18} tone="mute" style={{ width: 20 }}>{String(rank)}</Numeral>
       <View style={{ width: 44, height: 44 }}>
-        <GarmentTile path={item.thumbnailPath} fill />
+        <GarmentTile path={item.thumbnailPath} tile={item} fill />
       </View>
       <Txt size={14} numberOfLines={1} style={{ flex: 1 }}>{item.name}</Txt>
       <Numeral size={20}>{`x${item.count}`}</Numeral>
@@ -37,7 +37,6 @@ export function TopItemRow({ item, rank }: { item: RecapItem; rank: number }) {
 }
 
 export function TopPairRow({ pair, rank }: { pair: RecapPair; rank: number }) {
-  useImagesVersion();
   const c = useColors();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.line }}>
@@ -45,7 +44,7 @@ export function TopPairRow({ pair, rank }: { pair: RecapPair; rank: number }) {
       <View style={{ flexDirection: 'row', gap: 2 }}>
         {pair.items.map((p) => (
           <View key={p.id} style={{ width: 44, height: 44, backgroundColor: c.tile, alignItems: 'center', justifyContent: 'center' }}>
-            {p.thumbnailPath ? <Image source={{ uri: tileUrl(p.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <Ionicons name="shirt-outline" size={18} color={c.mute} />}
+            {p.tileThumbPath ? <Image source={{ uri: imageUrl(p.tileThumbPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <Ionicons name="shirt-outline" size={18} color={c.mute} />}
           </View>
         ))}
       </View>

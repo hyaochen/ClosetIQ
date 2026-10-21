@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { tileFields } from '../lib/tile.js';
 import {
   createTripSchema,
   updateTripSchema,
@@ -37,6 +38,7 @@ function formatTripItem(i: TripItemRow) {
     name: i.clothingItem?.name ?? i.customName ?? '',
     category: i.clothingItem?.category ?? i.category,
     thumbnail: i.clothingItem?.images[0]?.thumbnailPath ?? null,
+    ...tileFields(i.clothingItem?.images[0]),
     quantity: i.quantity,
     packed: i.packed,
     reason: i.reason,

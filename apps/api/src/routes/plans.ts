@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { tileFields } from '../lib/tile.js';
 import {
   upsertPlanSchema,
   planRangeQuerySchema,
@@ -52,6 +53,7 @@ function formatPlan(p: PlanRow) {
       category: i.clothingItem.category,
       colorFamily: i.clothingItem.colorFamily,
       thumbnail: i.clothingItem.images[0]?.thumbnailPath ?? null,
+      ...tileFields(i.clothingItem.images[0]),
     })),
   };
 }

@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { imageUrl, tileUrl, useImagesVersion } from '@/lib/images';
+import { imageUrl, imageTileUrl, type ImageLike } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { Txt, Serif, Button } from '@/components/ui';
 
@@ -12,7 +12,6 @@ const GAP = 12;
 
 /** 作品集：2 欄卡片；有封面圖用封面，沒有就用衣物縮圖拼排 */
 export function LooksTab({ maxWidth }: { maxWidth: number }) {
-  useImagesVersion();
   const c = useColors();
   const { width } = useWindowDimensions();
   const cols = 2;
@@ -38,8 +37,8 @@ export function LooksTab({ maxWidth }: { maxWidth: number }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, rowGap: 18, marginTop: 16 }}>
       {outfits.map((o) => {
-        const thumbs: (string | undefined)[] = (o.items ?? [])
-          .map((oi: any) => oi.clothingItem?.images?.[0]?.thumbnailPath)
+        const thumbs: (string | null)[] = (o.items ?? [])
+          .map((oi: any) => imageTileUrl(oi.clothingItem?.images?.[0] as ImageLike | undefined))
           .slice(0, 4);
         const wears = o._count?.wearLogs ?? 0;
         const name = o.name || '未命名穿搭';
@@ -63,7 +62,7 @@ export function LooksTab({ maxWidth }: { maxWidth: number }) {
                   {thumbs.map((t, i) => (
                     <View key={i} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 3 }}>
                       {t ? (
-                        <Image source={{ uri: tileUrl(t) }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
+                        <Image source={{ uri: t }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
                       ) : (
                         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                           <Ionicons name="shirt-outline" size={20} color={c.mute} />
