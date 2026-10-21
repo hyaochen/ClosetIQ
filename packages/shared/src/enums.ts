@@ -162,3 +162,13 @@ export const WeatherConditionLabel: Record<WeatherCondition, string> = {
   SNOWY: '雪天',
   WINDY: '大風',
 };
+
+// ---- P2 ----
+// 去背處理狀態（ClothingImage.cutoutStatus）
+export const CutoutStatus = {
+  NONE: 'NONE', // 尚未去背（舊照片、或去背功能未啟用）
+  PENDING: 'PENDING', // 排隊／處理中
+  DONE: 'DONE',
+  FAILED: 'FAILED',
+} as const;
+export type CutoutStatus = (typeof CutoutStatus)[keyof typeof CutoutStatus];

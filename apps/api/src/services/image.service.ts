@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
+import { cutoutEnabled, enqueueCutout } from './cutout.service.js'; // ---- P2 ----
 
 const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
@@ -97,8 +98,12 @@ export async function saveClothingImage(
       displayPath: paths.displayPath,
       thumbnailPath: paths.thumbnailPath,
       isPrimary,
+      cutoutStatus: cutoutEnabled() ? 'PENDING' : 'NONE', // ---- P2 ----
     },
   });
+
+  // ---- P2 ---- non-blocking: the upload succeeds even if rembg is down
+  enqueueCutout(image.id);
 
   return image;
 }
@@ -109,6 +114,9 @@ export async function deleteClothingImage(imageId: string) {
 
   // Delete files
   const filePaths = [image.originalPath, image.displayPath, image.thumbnailPath];
+  // ---- P2 ----
+  if (image.cutoutPath) filePaths.push(image.cutoutPath);
+  if (image.cutoutThumbPath) filePaths.push(image.cutoutThumbPath);
   for (const filePath of filePaths) {
     try {
       await fs.unlink(path.join(STORAGE_PATH, filePath));

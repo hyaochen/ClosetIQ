@@ -17,6 +17,7 @@ model User {
   items        ClothingItem[]
   outfits      Outfit[]
   wearLogs     WearLog[]
+  aiUsages     AiUsage[] // ---- P2 ----
 }
 
 model ClothingItem {
@@ -64,6 +65,12 @@ model ClothingImage {
   thumbnailPath  String
   isPrimary      Boolean      @default(false)
   createdAt      DateTime     @default(now())
+  // ---- P2 ---- (cutout fields, additive: nullable / defaulted)
+  cutoutPath      String?
+  cutoutThumbPath String?
+  cutoutStatus    String    @default("NONE") // NONE, PENDING, DONE, FAILED
+  cutoutError     String?
+  cutoutAt        DateTime?
 
   @@index([clothingItemId])
 }
@@ -127,4 +134,19 @@ model WearLogItem {
   @@unique([wearLogId, clothingItemId])
   @@index([wearLogId])
   @@index([clothingItemId])
+}
+
+// ---- P2 ----
+// Per-user per-day AI analyze usage counter (day = Asia/Taipei calendar date, YYYY-MM-DD)
+model AiUsage {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day          String
+  count        Int      @default(0)
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, day])
 }

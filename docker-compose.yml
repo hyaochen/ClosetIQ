@@ -33,6 +33,16 @@ services:
       IMAGE_STORAGE_PATH: /data/images
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8083}
+      # ---- P2 ----
+      REMBG_URL: http://rembg:7000
+      REMBG_MODEL: ${REMBG_MODEL:-isnet-general-use}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5-5}
+      AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-30}
+    # ---- P2 ---- ANTHROPIC_API_KEY lives only in ./.env.ai (gitignored). Optional: without it
+    # /api/items/analyze answers with the mock provider.
+    env_file:
+      - path: ./.env.ai
+        required: false
     volumes:
       - images:/data/images
     ports:
@@ -40,6 +50,31 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---- P2 ---- Background removal sidecar. Compose-internal only (no published port).
+  # Not a dependency of api: if it is down, uploads still succeed and cutouts are marked FAILED.
+  rembg:
+    image: danielgatis/rembg@sha256:98e72b790093dec3b21967e22c8eb75a0a67d458fdba7ef5fcc1900cad76396b
+    container_name: closet-rembg
+    command: ["s", "--host", "0.0.0.0", "--port", "7000", "--no-ui"]
+    mem_limit: 3g # measured peak 2.0 GB with isnet-general-use (1.6 GB with u2net)
+    cpus: 4
+    expose:
+      - "7000"
+    volumes:
+      - rembg-models:/root/.u2net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7000/openapi.json', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     logging:
       driver: json-file
@@ -70,3 +105,4 @@ services:
 volumes:
   pgdata:
   images:
+  rembg-models: # ---- P2 ----
