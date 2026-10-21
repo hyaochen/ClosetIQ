@@ -110,6 +110,11 @@ model WearLog {
   weatherCondition String?
   notes            String?
   createdAt        DateTime      @default(now())
+  // ---- P3: OOTD photo (one full-body photo per wear log, all nullable) ----
+  photoOriginalPath  String?
+  photoDisplayPath   String?
+  photoThumbnailPath String?
+  photoUpdatedAt     DateTime?
 
   items WearLogItem[]
 
