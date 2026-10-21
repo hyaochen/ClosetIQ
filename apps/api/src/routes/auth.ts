@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import * as argon2 from 'argon2';
-import { registerSchema, loginSchema } from '@closet/shared';
+import { registerSchema, loginSchema, updateSettingsSchema, resolveCurrentSeason } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
 import { signRefreshToken } from '../plugins/auth.js';
 
@@ -132,13 +132,27 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/me', { onRequest: [app.authenticate] }, async (request, reply) => {
     const user = await prisma.user.findUnique({
       where: { id: request.user.id },
-      select: { id: true, email: true, displayName: true, createdAt: true },
+      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true },
     });
 
     if (!user) {
       return reply.status(404).send({ error: '使用者不存在' });
     }
 
-    return reply.send({ user });
+    return reply.send({ user: { ...user, effectiveSeason: resolveCurrentSeason(user.currentSeason) } });
+  });
+
+  // PATCH /api/auth/settings - 目前季節（null = 自動）、穿後自動待洗
+  app.patch('/api/auth/settings', { onRequest: [app.authenticate] }, async (request, reply) => {
+    const parsed = updateSettingsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: parsed.error.issues[0]?.message ?? '輸入格式錯誤', details: parsed.error.flatten() });
+    }
+    const user = await prisma.user.update({
+      where: { id: request.user.id },
+      data: parsed.data,
+      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true },
+    });
+    return reply.send({ user: { ...user, effectiveSeason: resolveCurrentSeason(user.currentSeason) } });
   });
 }

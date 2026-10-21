@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
+import { suggestOutfitSchema, temperatureToSeason, resolveCurrentSeason, isOutOfSeason } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
@@ -18,7 +18,7 @@ async function fetchWeather(lat: number, lon: number): Promise<WeatherData | nul
     );
     if (!res.ok) return null;
 
-    const data = await res.json();
+    const data = (await res.json()) as any;
     const temp = Math.round(data.main.temp);
     const weatherId = data.weather[0]?.id ?? 0;
 
@@ -57,8 +57,12 @@ export async function suggestionRoutes(app: FastifyInstance) {
     const targetSeasons = weather ? temperatureToSeason(weather.temp) : [];
 
     // Get all active items
-    const items = await prisma.clothingItem.findMany({
-      where: { userId, isActive: true },
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { currentSeason: true } });
+    const currentSeason = resolveCurrentSeason(me?.currentSeason);
+
+    // 只取乾淨的衣物（排除待洗 / 送洗中）；季外衣物在下方過濾
+    const allItems = await prisma.clothingItem.findMany({
+      where: { userId, isActive: true, laundryStatus: 'CLEAN' },
       include: {
         images: { where: { isPrimary: true }, take: 1 },
         _count: { select: { wearLogItems: true } },
@@ -69,6 +73,8 @@ export async function suggestionRoutes(app: FastifyInstance) {
         },
       },
     });
+
+    const items = allItems.filter((i) => !isOutOfSeason(i.seasons, currentSeason));
 
     // Score each item
     const scored = items.map((item) => {

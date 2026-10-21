@@ -8,6 +8,7 @@ import {
   Condition,
   DeclutterReason,
   WeatherCondition,
+  LaundryStatus,
 } from './enums';
 
 // ============ Auth ============
@@ -42,6 +43,7 @@ const occasionEnum = z.nativeEnum(Occasion);
 const conditionEnum = z.nativeEnum(Condition);
 const declutterReasonEnum = z.nativeEnum(DeclutterReason);
 const weatherConditionEnum = z.nativeEnum(WeatherCondition);
+const laundryStatusEnum = z.nativeEnum(LaundryStatus);
 
 export const createClothingItemSchema = z.object({
   name: z.string().min(1, '請輸入衣物名稱').max(100),
@@ -61,6 +63,8 @@ export const createClothingItemSchema = z.object({
   condition: conditionEnum.optional().default('GOOD'),
   notes: z.string().max(500).optional(),
   tags: z.array(z.string().max(30)).max(10).optional().default([]),
+  laundryStatus: laundryStatusEnum.optional(),
+  storageLocationId: z.string().uuid().nullable().optional(),
 });
 
 export const updateClothingItemSchema = createClothingItemSchema.partial();
@@ -100,6 +104,9 @@ export const itemsQuerySchema = z.object({
   condition: conditionEnum.optional(),
   search: z.string().max(100).optional(),
   isActive: z.coerce.boolean().optional().default(true),
+  storageLocationId: z.string().uuid().optional(),
+  laundryStatus: laundryStatusEnum.optional(),
+  inSeason: z.enum(['true', 'false']).optional(),
   sortBy: z.enum(['name', 'createdAt', 'wearCount', 'lastWorn', 'purchasePrice']).optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -110,6 +117,32 @@ export const suggestOutfitSchema = z.object({
   occasion: occasionEnum.optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),
   lon: z.coerce.number().min(-180).max(180).optional(),
+});
+
+// ============ Laundry / Storage / Settings ============
+
+export const laundryBatchSchema = z.object({
+  itemIds: z.array(z.string().uuid()).min(1, '請至少選擇一件衣物').max(500),
+  status: laundryStatusEnum,
+});
+
+export const bulkMoveSchema = z.object({
+  itemIds: z.array(z.string().uuid()).min(1, '請至少選擇一件衣物').max(500),
+  storageLocationId: z.string().uuid().nullable(),
+});
+
+export const createStorageLocationSchema = z.object({
+  name: z.string().trim().min(1, '請輸入位置名稱').max(30, '位置名稱不得超過 30 個字'),
+  isOffSeason: z.boolean().optional().default(false),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+});
+
+export const updateStorageLocationSchema = createStorageLocationSchema.partial();
+
+export const updateSettingsSchema = z.object({
+  currentSeason: seasonEnum.nullable().optional(),
+  autoDirtyOnWear: z.boolean().optional(),
+  displayName: z.string().trim().min(1).max(50).optional(),
 });
 
 // ============ Type exports ============
@@ -123,3 +156,7 @@ export type UpdateOutfitInput = z.infer<typeof updateOutfitSchema>;
 export type CreateWearLogInput = z.infer<typeof createWearLogSchema>;
 export type ItemsQuery = z.infer<typeof itemsQuerySchema>;
 export type SuggestOutfitInput = z.infer<typeof suggestOutfitSchema>;
+export type LaundryBatchInput = z.infer<typeof laundryBatchSchema>;
+export type BulkMoveInput = z.infer<typeof bulkMoveSchema>;
+export type CreateStorageLocationInput = z.infer<typeof createStorageLocationSchema>;
+export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;

@@ -14,9 +14,25 @@ model User {
   passwordHash String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  currentSeason    String?        // SPRING/SUMMER/AUTUMN/WINTER；null = 依台灣月份自動
+  autoDirtyOnWear  Boolean        @default(true)
   items        ClothingItem[]
   outfits      Outfit[]
   wearLogs     WearLog[]
+  storageLocations StorageLocation[]
+}
+
+model StorageLocation {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  sortOrder   Int            @default(0)
+  isOffSeason Boolean        @default(false) // 換季收納處
+  createdAt   DateTime       @default(now())
+  items       ClothingItem[]
+
+  @@index([userId])
 }
 
 model ClothingItem {
@@ -43,6 +59,9 @@ model ClothingItem {
   isActive         Boolean         @default(true)
   declutterReason  String?         // DONATED, SOLD, DISCARDED, GIFTED
   declutteredAt    DateTime?
+  laundryStatus    String          @default("CLEAN") // CLEAN, DIRTY, CLEANING
+  storageLocationId String?
+  storageLocation  StorageLocation? @relation(fields: [storageLocationId], references: [id], onDelete: SetNull)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -53,6 +72,8 @@ model ClothingItem {
   @@index([userId])
   @@index([userId, category])
   @@index([userId, isActive])
+  @@index([userId, laundryStatus])
+  @@index([storageLocationId])
 }
 
 model ClothingImage {

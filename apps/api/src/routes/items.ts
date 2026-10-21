@@ -1,6 +1,13 @@
 import type { FastifyInstance } from 'fastify';
-import { createClothingItemSchema, updateClothingItemSchema, itemsQuerySchema } from '@closet/shared';
+import { createClothingItemSchema, updateClothingItemSchema, itemsQuerySchema, laundryBatchSchema, bulkMoveSchema, resolveCurrentSeason } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+
+/** 確認 storageLocationId 屬於該使用者 */
+async function ownsLocation(userId: string, storageLocationId: string | null | undefined): Promise<boolean> {
+  if (!storageLocationId) return true;
+  const loc = await prisma.storageLocation.findFirst({ where: { id: storageLocationId, userId }, select: { id: true } });
+  return !!loc;
+}
 
 export async function itemRoutes(app: FastifyInstance) {
   // All item routes require authentication
@@ -13,7 +20,7 @@ export async function itemRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '查詢參數錯誤', details: parsed.error.flatten() });
     }
 
-    const { category, colorFamily, season, occasion, condition, search, isActive, sortBy, sortOrder, page, limit } = parsed.data;
+    const { category, colorFamily, season, occasion, condition, search, isActive, storageLocationId, laundryStatus, inSeason, sortBy, sortOrder, page, limit } = parsed.data;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -26,6 +33,18 @@ export async function itemRoutes(app: FastifyInstance) {
     if (condition) where.condition = condition;
     if (season) where.seasons = { has: season };
     if (occasion) where.occasions = { has: occasion };
+    if (storageLocationId) where.storageLocationId = storageLocationId;
+    if (laundryStatus) where.laundryStatus = laundryStatus;
+    if (inSeason) {
+      const me = await prisma.user.findUnique({ where: { id: request.user.id }, select: { currentSeason: true } });
+      const cur = resolveCurrentSeason(me?.currentSeason);
+      // 季外 = seasons 非空且不含目前季節
+      where.AND = [
+        inSeason === 'true'
+          ? { OR: [{ seasons: { isEmpty: true } }, { seasons: { has: cur } }] }
+          : { AND: [{ seasons: { isEmpty: false } }, { NOT: { seasons: { has: cur } } }] },
+      ];
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -37,8 +56,11 @@ export async function itemRoutes(app: FastifyInstance) {
 
     // Build orderBy based on sortBy
     let orderBy: any;
-    if (sortBy === 'wearCount' || sortBy === 'lastWorn') {
-      // These require aggregation - fallback to createdAt, computed on client
+    if (sortBy === 'wearCount') {
+      // 依穿著次數排序（關聯計數），同次數時新加入的在前
+      orderBy = [{ wearLogItems: { _count: sortOrder } }, { createdAt: 'desc' }];
+    } else if (sortBy === 'lastWorn') {
+      // 需要聚合 - 退回 createdAt，由用戶端處理
       orderBy = { createdAt: sortOrder };
     } else {
       orderBy = { [sortBy]: sortOrder };
@@ -55,6 +77,7 @@ export async function itemRoutes(app: FastifyInstance) {
             where: { isPrimary: true },
             take: 1,
           },
+          storageLocation: { select: { id: true, name: true, isOffSeason: true } },
           _count: {
             select: { wearLogItems: true },
           },
@@ -111,6 +134,7 @@ export async function itemRoutes(app: FastifyInstance) {
       where: { id, userId: request.user.id },
       include: {
         images: { orderBy: { isPrimary: 'desc' } },
+        storageLocation: { select: { id: true, name: true, isOffSeason: true } },
         _count: { select: { wearLogItems: true } },
         wearLogItems: {
           include: { wearLog: true },
@@ -135,6 +159,9 @@ export async function itemRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data;
+    if (!(await ownsLocation(request.user.id, data.storageLocationId))) {
+      return reply.status(400).send({ error: '收納位置不存在' });
+    }
     const item = await prisma.clothingItem.create({
       data: {
         userId: request.user.id,
@@ -155,6 +182,8 @@ export async function itemRoutes(app: FastifyInstance) {
         condition: data.condition,
         notes: data.notes,
         tags: data.tags ?? [],
+        laundryStatus: data.laundryStatus,
+        storageLocationId: data.storageLocationId ?? null,
       },
       include: { images: true },
     });
@@ -179,6 +208,9 @@ export async function itemRoutes(app: FastifyInstance) {
     }
 
     const data = parsed.data;
+    if (!(await ownsLocation(request.user.id, data.storageLocationId))) {
+      return reply.status(400).send({ error: '收納位置不存在' });
+    }
     const updateData: any = { ...data };
     if (data.purchaseDate) {
       updateData.purchaseDate = new Date(data.purchaseDate);
@@ -191,6 +223,57 @@ export async function itemRoutes(app: FastifyInstance) {
     });
 
     return reply.send({ item });
+  });
+
+  // POST /api/items/laundry - 批次改洗衣狀態（單件改狀態走 PUT /api/items/:id 的 laundryStatus）
+  app.post('/api/items/laundry', async (request, reply) => {
+    const parsed = laundryBatchSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: '輸入格式錯誤', details: parsed.error.flatten() });
+    }
+    const { itemIds, status } = parsed.data;
+    const unique = [...new Set(itemIds)];
+    const owned = await prisma.clothingItem.count({ where: { id: { in: unique }, userId: request.user.id } });
+    if (owned !== unique.length) {
+      return reply.status(400).send({ error: '部分衣物不存在或不屬於您' });
+    }
+    const result = await prisma.clothingItem.updateMany({
+      where: { id: { in: unique }, userId: request.user.id },
+      data: { laundryStatus: status },
+    });
+    return reply.send({ updated: result.count, status });
+  });
+
+  // GET /api/items/laundry - 洗衣籃：待洗 + 送洗中
+  app.get('/api/items/laundry', async (request, reply) => {
+    const items = await prisma.clothingItem.findMany({
+      where: { userId: request.user.id, isActive: true, laundryStatus: { in: ['DIRTY', 'CLEANING'] } },
+      orderBy: { updatedAt: 'desc' },
+      include: { images: { where: { isPrimary: true }, take: 1 } },
+    });
+    return reply.send({ items });
+  });
+
+  // POST /api/items/bulk-move - 批次移動收納位置（storageLocationId 為 null = 取消位置）
+  app.post('/api/items/bulk-move', async (request, reply) => {
+    const parsed = bulkMoveSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: '輸入格式錯誤', details: parsed.error.flatten() });
+    }
+    const { itemIds, storageLocationId } = parsed.data;
+    if (!(await ownsLocation(request.user.id, storageLocationId))) {
+      return reply.status(400).send({ error: '收納位置不存在' });
+    }
+    const unique = [...new Set(itemIds)];
+    const owned = await prisma.clothingItem.count({ where: { id: { in: unique }, userId: request.user.id } });
+    if (owned !== unique.length) {
+      return reply.status(400).send({ error: '部分衣物不存在或不屬於您' });
+    }
+    const result = await prisma.clothingItem.updateMany({
+      where: { id: { in: unique }, userId: request.user.id },
+      data: { storageLocationId },
+    });
+    return reply.send({ moved: result.count });
   });
 
   // DELETE /api/items/:id - Soft delete (declutter) or hard delete
