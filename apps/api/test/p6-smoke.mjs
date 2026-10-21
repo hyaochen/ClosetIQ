@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 const require = createRequire(import.meta.url);
 const sharp = require('sharp');
-const BASE = 'http://127.0.0.1:3016';
+const BASE = process.env.BASE || 'http://127.0.0.1:3016';
 const IMG_DIR = process.env.IMG_DIR;
 
 let fails = 0;

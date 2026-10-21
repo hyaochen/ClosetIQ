@@ -5,7 +5,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 const require = createRequire(import.meta.url);
 const sharp = require('sharp');
-const BASE = 'http://127.0.0.1:3013';
+const BASE = process.env.BASE || 'http://127.0.0.1:3013';
 const STORE = process.env.IMAGE_STORAGE_PATH;
 let fails = 0;
 const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); };
@@ -24,7 +24,7 @@ const photo = async (w, h, orient) => {
   return await s.toBuffer();
 };
 const form = (buf, name = 'ootd.jpg', type = 'image/jpeg') => { const f = new FormData(); f.append('file', new Blob([buf], { type }), name); return f; };
-const sql = (q) => execSync('docker exec closet-p3-db psql -U closet -d closet -c "' + q.replace(/"/g, '\\"') + '"').toString();
+const sql = (q) => execSync('docker exec ' + (process.env.DB_CONTAINER || 'closet-p3-db') + ' psql -U closet -d closet -c "' + q.replace(/"/g, '\\"') + '"').toString();
 const countFiles = (dir) => { try { return fs.readdirSync(dir).length; } catch { return 0; } };
 
 const reg = async (n) => (await j('POST', '/api/auth/register', null, { email: n + '@test.local', password: 'Test1234!x', displayName: n })).d;

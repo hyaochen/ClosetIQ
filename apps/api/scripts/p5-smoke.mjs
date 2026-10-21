@@ -175,10 +175,10 @@ const idsSeen = gen2.filter((i) => i.clothingItemId).map((i) => i.clothingItemId
 ok(new Set(idsSeen).size === idsSeen.length, '同一件衣物不會出現兩次');
 
 // 超過預報窗口
-r = await api('POST', '/api/trips', A, { name: '長程旅行', destination: 'Tokyo', startDate: plus(18), endDate: plus(24) });
+r = await api('POST', '/api/trips', A, { name: '長程旅行', destination: 'Tokyo', startDate: plus(13), endDate: plus(19) });
 const longId = r.json.trip.id;
 r = await api('POST', `/api/trips/${longId}/generate`, A);
-ok(r.status === 200 && r.json.weather.unknownDates.length === 7, '超過 16 天預報的日子標無預報', r.json.weather.unknownDates);
+ok(r.status === 200 && r.json.weather.unknownDates.length === 4, '前 3 天在 16 天窗口內、後 4 天超過窗口標無預報', r.json.weather.unknownDates);
 ok(r.json.items.some((i) => /無預報/.test(i.reason || '') || /日有雨/.test(i.reason || '')), '保守規則 reason', r.json.items.map((i) => i.reason));
 ok(r.json.warnings.some((w) => /無預報/.test(w)), 'warnings 提到無預報', r.json.warnings);
 ok(r.json.items.filter((i) => i.category === 'TOP').length === 6 && r.json.warnings.some((w) => /上衣只有 6 件/.test(w)), '上衣不足時給警告（需要 7 件只有 6 件）', r.json.warnings);
