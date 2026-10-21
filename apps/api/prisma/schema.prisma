@@ -17,6 +17,7 @@ model User {
   items        ClothingItem[]
   outfits      Outfit[]
   wearLogs     WearLog[]
+  wishlistItems WishlistItem[]
 }
 
 model ClothingItem {
@@ -127,4 +128,32 @@ model WearLogItem {
   @@unique([wearLogId, clothingItemId])
   @@index([wearLogId])
   @@index([clothingItemId])
+}
+
+// ---- P6 ----
+model WishlistItem {
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  category           String
+  subcategory        String?
+  colorFamily        String
+  colors             String[]
+  pattern            String?
+  seasons            String[]
+  occasions          String[]
+  price              Decimal? @db.Decimal(10, 2)
+  url                String?
+  note               String?
+  status             String   @default("WANT") // WANT, BOUGHT, DROPPED
+  imageOriginalPath  String?
+  imageDisplayPath   String?
+  imageThumbnailPath String?
+  boughtItemId       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
 }
