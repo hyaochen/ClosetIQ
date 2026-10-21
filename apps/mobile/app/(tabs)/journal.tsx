@@ -1,112 +1,106 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { OccasionLabel, WeatherConditionLabel } from '@closet/shared';
-import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useColors } from '@/lib/theme';
-import { localDateString, logDateKey } from '@/lib/queries';
-import { Screen, PageHeader, SectionHeader, Hairline, Txt, Serif, Numeral, StatRow } from '@/components/ui';
-import { router } from 'expo-router';
-
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
-const MONTH_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const MONTH_ZH = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-
-function pad(n: number) {
-  return String(n).padStart(2, '0');
-}
+import { imageUrl } from '@/lib/images';
+import { localDateString } from '@/lib/queries';
+import {
+  MONTH_EN, MONTH_ZH, WEEKDAYS_MON, pad, shiftMonth, useJournalMonth, useMonthlyRecap, uploadOotdForDate, pct,
+} from '@/lib/journal';
+import { showAlert } from '@/lib/alert';
+import { Screen, PageHeader, SectionHeader, Hairline, Txt, Numeral, StatRow } from '@/components/ui';
+import { usePhotoSource } from '@/components/journal/PhotoSource';
+import { Delta, TopLists } from '@/components/journal/Recap';
+import type { JournalDay } from '@closet/shared';
 
 export default function JournalScreen() {
   const c = useColors();
-  const today = useMemo(() => new Date(), []);
-  const todayKey = localDateString(today);
-  const [cur, setCur] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const [selected, setSelected] = useState<string | null>(null);
+  const params = useLocalSearchParams<{ month?: string }>();
+  const todayKey = useMemo(() => localDateString(), []);
+  const thisMonth = todayKey.slice(0, 7);
+  const [month, setMonth] = useState(thisMonth);
+  const [uploading, setUploading] = useState(false);
+  const photoSource = usePhotoSource();
 
-  const from = `${cur.year}-${pad(cur.month + 1)}-01`;
-  const lastDay = new Date(cur.year, cur.month + 1, 0).getDate();
-  const to = `${cur.year}-${pad(cur.month + 1)}-${pad(lastDay)}`;
+  // 從年度回顧點某個月回來
+  useEffect(() => {
+    if (params.month && /^\d{4}-\d{2}$/.test(params.month)) setMonth(params.month);
+  }, [params.month]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['wear-logs', 'month', from, to],
-    queryFn: () => api(`/api/wear-logs?from=${from}&to=${to}&limit=100`),
-  });
-  const { data: overview } = useQuery({
-    queryKey: ['stats', 'overview'],
-    queryFn: () => api('/api/stats/overview'),
-  });
+  const [year, mon] = month.split('-').map(Number);
+  const monthIndex = mon - 1;
+  const lastDay = new Date(year, mon, 0).getDate();
+  const { data, isLoading } = useJournalMonth(month);
+  const { data: recap, isLoading: recapLoading } = useMonthlyRecap(month);
 
-  const logs: any[] = data?.logs ?? [];
   const byDate = useMemo(() => {
-    const m: Record<string, any[]> = {};
-    for (const l of logs) (m[logDateKey(l.date)] ||= []).push(l);
+    const m: Record<string, JournalDay> = {};
+    for (const d of data?.days ?? []) m[d.date] = d;
     return m;
-  }, [logs]);
-
-  const recap = useMemo(() => {
-    const worn = new Map<string, { name: string; n: number }>();
-    for (const l of logs) {
-      for (const wi of l.items ?? []) {
-        const id = wi.clothingItem?.id;
-        if (!id) continue;
-        const e = worn.get(id) ?? { name: wi.clothingItem.name, n: 0 };
-        e.n += 1;
-        worn.set(id, e);
-      }
-    }
-    let top: { name: string; n: number } | null = null;
-    worn.forEach((v) => { if (!top || v.n > top.n) top = v; });
-    const active = overview?.activeItems ?? 0;
-    return {
-      days: Object.keys(byDate).length,
-      usage: active > 0 ? Math.round((worn.size / active) * 100) : 0,
-      top: top as { name: string; n: number } | null,
-    };
-  }, [logs, byDate, overview]);
+  }, [data]);
 
   // 月曆：週一開頭
   const cells = useMemo(() => {
-    const lead = (new Date(cur.year, cur.month, 1).getDay() + 6) % 7;
+    const lead = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
     const arr: (number | null)[] = Array(lead).fill(null);
     for (let d = 1; d <= lastDay; d++) arr.push(d);
     while (arr.length % 7 !== 0) arr.push(null);
     return arr;
-  }, [cur, lastDay]);
+  }, [year, monthIndex, lastDay]);
 
-  const shift = (delta: number) => {
-    setCur((p) => {
-      const d = new Date(p.year, p.month + delta, 1);
-      return { year: d.getFullYear(), month: d.getMonth() };
-    });
-    setSelected(null);
+  const isThisMonth = month === thisMonth;
+  const emptyMonth = !isLoading && (data?.days.length ?? 0) === 0;
+
+  const shoot = async () => {
+    const photo = await photoSource.ask();
+    if (!photo) return;
+    setUploading(true);
+    try {
+      const { log } = await uploadOotdForDate(todayKey, photo);
+      // 直接進入當日詳情並開啟補選衣物
+      router.push({ pathname: '/journal/[date]', params: { date: log.date, pick: log.items.length === 0 ? '1' : '0' } });
+    } catch (e: any) {
+      showAlert('上傳失敗', e.message);
+    } finally {
+      setUploading(false);
+    }
   };
-
-  const keyOf = (d: number) => `${cur.year}-${pad(cur.month + 1)}-${pad(d)}`;
-  const selLogs = selected ? byDate[selected] ?? [] : [];
-  const isThisMonth = cur.year === today.getFullYear() && cur.month === today.getMonth();
 
   return (
     <Screen>
-      <PageHeader title="日記" />
+      <PageHeader
+        title="日記"
+        right={
+          <Pressable
+            onPress={shoot}
+            disabled={uploading}
+            accessibilityRole="button"
+            accessibilityLabel="拍今日穿搭"
+            style={({ pressed }) => ({ height: 44, paddingHorizontal: 14, backgroundColor: c.ink, flexDirection: 'row', alignItems: 'center', gap: 6, opacity: uploading ? 0.5 : pressed ? 0.75 : 1 })}
+          >
+            {uploading ? <ActivityIndicator size="small" color={c.onInk} /> : <Ionicons name="camera-outline" size={16} color={c.onInk} />}
+            <Txt size={13} style={{ color: c.onInk }}>拍今日穿搭</Txt>
+          </Pressable>
+        }
+      />
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: c.ink }}>
-        <Pressable onPress={() => shift(-1)} accessibilityRole="button" accessibilityLabel="上個月" style={{ width: 44, height: 44, justifyContent: 'center' }}>
+        <Pressable onPress={() => setMonth(shiftMonth(month, -1))} accessibilityRole="button" accessibilityLabel="上個月" style={{ width: 44, height: 44, justifyContent: 'center' }}>
           <Ionicons name="chevron-back" size={18} color={c.ink} />
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-          <Numeral size={24}>{MONTH_EN[cur.month]}</Numeral>
-          <Txt size={13} tone="mute">{`${cur.year} · ${MONTH_ZH[cur.month]}`}</Txt>
+          <Numeral size={24}>{MONTH_EN[monthIndex]}</Numeral>
+          <Txt size={13} tone="mute">{`${year} · ${MONTH_ZH[monthIndex]}`}</Txt>
         </View>
-        <Pressable onPress={() => shift(1)} accessibilityRole="button" accessibilityLabel="下個月" style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-end' }}>
+        <Pressable onPress={() => setMonth(shiftMonth(month, 1))} accessibilityRole="button" accessibilityLabel="下個月" style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-end' }}>
           <Ionicons name="chevron-forward" size={18} color={c.ink} />
         </Pressable>
       </View>
 
       <View style={{ flexDirection: 'row', gap: 4, marginTop: 8 }}>
-        {WEEKDAYS.map((w) => (
+        {WEEKDAYS_MON.map((w) => (
           <View key={w} style={{ flex: 1, alignItems: 'center' }}>
             <Txt size={11} tone="mute" style={{ lineHeight: 16 }}>{w}</Txt>
           </View>
@@ -117,33 +111,41 @@ export default function JournalScreen() {
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, marginHorizontal: -2 }}>
         {cells.map((d, i) => {
-          if (d === null) return <View key={`e${i}`} style={{ width: `${100 / 7}%`, height: 62, padding: 2 }} />;
-          const key = keyOf(d);
-          const dayLogs = byDate[key] ?? [];
-          const has = dayLogs.length > 0;
+          if (d === null) return <View key={`e${i}`} style={{ width: `${100 / 7}%`, height: 64, padding: 2 }} />;
+          const key = `${month}-${pad(d)}`;
+          const day = byDate[key];
+          const has = !!day;
           const isToday = key === todayKey;
-          const isSel = key === selected;
           const future = key > todayKey;
-          const thumbs: (string | undefined)[] = dayLogs
-            .flatMap((l) => (l.items ?? []).map((wi: any) => wi.clothingItem?.images?.[0]?.thumbnailPath))
-            .slice(0, 4);
+          const photo = day?.photoThumbnailPath;
+          const thumbs: (string | null)[] = has && !photo
+            ? day.logs.flatMap((l) => l.items.map((it) => it.thumbnailPath)).slice(0, 4)
+            : [];
+          const count = has ? day.logs.reduce((a, l) => a + l.items.length, 0) : 0;
           return (
-            <View key={key} style={{ width: `${100 / 7}%`, height: 62, padding: 2 }}>
+            <View key={key} style={{ width: `${100 / 7}%`, height: 64, padding: 2 }}>
               <Pressable
-                onPress={() => setSelected(isSel ? null : key)}
+                onPress={() => router.push({ pathname: '/journal/[date]', params: { date: key } })}
+                disabled={future}
                 accessibilityRole="button"
-                accessibilityLabel={`${cur.month + 1} 月 ${d} 日${has ? `，穿了 ${dayLogs.reduce((a, l) => a + (l.items?.length ?? 0), 0)} 件` : '，沒有紀錄'}`}
-                accessibilityState={{ selected: isSel }}
+                accessibilityLabel={`${mon} 月 ${d} 日${has ? (photo ? '，有穿搭照片' : '') + `，穿了 ${count} 件` : '，沒有紀錄'}`}
                 style={{
                   flex: 1,
                   backgroundColor: has ? c.card : 'transparent',
-                  borderWidth: isToday || isSel ? 2 : 1,
-                  borderColor: isSel ? c.ink : isToday ? c.accent : future ? c.card : c.line,
+                  borderWidth: isToday ? 2 : 1,
+                  borderColor: isToday ? c.accent : future ? c.card : c.line,
                   overflow: 'hidden',
                 }}
               >
-                {has ? (
-                  <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', paddingTop: 13, paddingHorizontal: 1 }}>
+                {photo ? (
+                  <Image source={{ uri: imageUrl(photo) }} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} contentFit="cover" accessibilityIgnoresInvertColors />
+                ) : has ? (
+                  <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', paddingTop: 14, paddingHorizontal: 1 }}>
+                    {thumbs.length === 0 ? (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="ellipse" size={6} color={c.accent} />
+                      </View>
+                    ) : null}
                     {thumbs.map((t, ti) => (
                       <View key={ti} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 1 }}>
                         {t ? <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" /> : <View style={{ flex: 1, backgroundColor: c.line }} />}
@@ -151,8 +153,8 @@ export default function JournalScreen() {
                     ))}
                   </View>
                 ) : null}
-                <View style={{ position: 'absolute', left: 3, top: 0 }}>
-                  <Numeral size={13} tone={isToday ? 'accent' : future ? 'mute' : 'ink'}>{String(d)}</Numeral>
+                <View style={{ position: 'absolute', left: 0, top: 0, paddingHorizontal: 3, backgroundColor: photo ? c.paper : 'transparent', opacity: photo ? 0.92 : 1 }}>
+                  <Numeral size={13} tone={isToday ? 'accent' : future ? 'mute' : 'ink'} style={{ opacity: future ? 0.7 : 1 }}>{String(d)}</Numeral>
                 </View>
               </Pressable>
             </View>
@@ -160,64 +162,58 @@ export default function JournalScreen() {
         })}
       </View>
 
-      {/* 選中日期 */}
-      {selected ? (
-        <View style={{ marginTop: 16 }}>
-          <SectionHeader title={`${Number(selected.slice(5, 7))} 月 ${Number(selected.slice(8, 10))} 日的穿搭`} />
-          {selLogs.length === 0 ? (
-            <Txt tone="mute" style={{ paddingVertical: 14 }}>這天沒有穿著紀錄</Txt>
-          ) : (
-            selLogs.map((log) => (
-              <View key={log.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line, gap: 8 }}>
-                <Txt size={12} tone="mute">
-                  {[
-                    log.occasion ? OccasionLabel[log.occasion as keyof typeof OccasionLabel] : null,
-                    log.weatherTemp != null ? `${log.weatherTemp}°` : null,
-                    log.weatherCondition ? WeatherConditionLabel[log.weatherCondition as keyof typeof WeatherConditionLabel] : null,
-                  ].filter(Boolean).join(' · ') || '穿搭紀錄'}
-                </Txt>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {(log.items ?? []).map((wi: any) => {
-                    const it = wi.clothingItem;
-                    const t = it?.images?.[0]?.thumbnailPath;
-                    return (
-                      <Pressable
-                        key={wi.id}
-                        onPress={() => it?.id && router.push(`/item/${it.id}`)}
-                        accessibilityRole="button"
-                        accessibilityLabel={it?.name}
-                        style={{ width: 72, gap: 4 }}
-                      >
-                        <View style={{ height: 72, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
-                          {t ? <Image source={{ uri: imageUrl(t) }} style={{ width: '100%', height: '100%' }} contentFit="contain" /> : <Ionicons name="shirt-outline" size={22} color={c.mute} />}
-                        </View>
-                        <Txt size={11} numberOfLines={1} style={{ lineHeight: 15 }}>{it?.name}</Txt>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                {log.notes ? <Txt size={13} tone="mute">{log.notes}</Txt> : null}
-              </View>
-            ))
-          )}
+      {emptyMonth ? (
+        <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.line }}>
+          <Txt tone="mute">{isThisMonth ? '這個月還沒有穿搭紀錄。拍下今天的穿搭，月曆就會開始長出照片。' : `${MONTH_ZH[monthIndex]}沒有任何穿搭紀錄。點月曆上的日期，可以補記那天穿了什麼。`}</Txt>
         </View>
       ) : null}
 
       {/* 月回顧 */}
       <View style={{ marginTop: 18 }}>
-        <SectionHeader title={`${MONTH_ZH[cur.month]}回顧`} link={isThisMonth ? `至 ${pad(today.getMonth() + 1)}.${pad(today.getDate())}` : undefined} />
-        <StatRow
-          stats={[
-            { value: recap.days, label: '天有紀錄' },
-            { value: `${recap.usage}%`, label: '衣櫃使用率' },
-            { value: recap.top ? `x${recap.top.n}` : '0', label: recap.top ? recap.top.name : '本月最常穿' },
-          ]}
+        <SectionHeader
+          title={`${MONTH_ZH[monthIndex]}回顧`}
+          link={recap ? (isThisMonth ? `至 ${recap.throughDate.slice(5, 7)}.${recap.throughDate.slice(8, 10)}` : undefined) : undefined}
         />
-        <Hairline />
-        <View style={{ paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-          <Txt size={13} tone="mute">本月穿著紀錄</Txt>
-          <Txt size={13}>{`${logs.length} 筆`}</Txt>
-        </View>
+        {recapLoading ? <ActivityIndicator color={c.ink} style={{ marginVertical: 16 }} /> : null}
+        {recap ? (
+          recap.daysLogged === 0 ? (
+            <View style={{ paddingVertical: 14 }}>
+              <Txt tone="mute">{`${MONTH_ZH[monthIndex]}還沒有紀錄，所以沒有回顧可看。`}</Txt>
+              {recap.previous.daysLogged > 0 ? (
+                <Txt size={13} tone="mute" style={{ marginTop: 4 }}>{`上個月有 ${recap.previous.daysLogged} 天紀錄，衣櫃使用率 ${pct(recap.previous.usageRate)}。`}</Txt>
+              ) : null}
+            </View>
+          ) : (
+            <>
+              <StatRow
+                stats={[
+                  { value: recap.daysLogged, label: '天有紀錄' },
+                  { value: pct(recap.usageRate), label: '衣櫃使用率' },
+                  { value: recap.topItems[0] ? `x${recap.topItems[0].count}` : '0', label: recap.topItems[0]?.name ?? '本月最常穿' },
+                ]}
+              />
+              <View style={{ paddingVertical: 10, flexDirection: 'row', gap: 12, borderBottomWidth: 1, borderBottomColor: c.line }}>
+                <Txt size={12} tone="mute" style={{ width: 52 }}>與上月比</Txt>
+                <Delta value={recap.daysLogged - recap.previous.daysLogged} unit=" 天" label="紀錄" />
+                <Delta value={Math.round(recap.usageRateDelta * 100)} unit="%" label="使用率" />
+              </View>
+              <View style={{ paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: c.line }}>
+                <Txt size={13} tone="mute">本月穿著紀錄</Txt>
+                <Txt size={13}>{`${recap.wearLogCount} 筆 · 穿過 ${recap.itemsWorn} / ${recap.wardrobeSize} 件`}</Txt>
+              </View>
+              <TopLists recap={recap} />
+            </>
+          )
+        ) : null}
+        <Pressable
+          onPress={() => router.push({ pathname: '/journal/year', params: { year: String(year) } })}
+          accessibilityRole="button"
+          accessibilityLabel={`看 ${year} 年度回顧`}
+          style={({ pressed }) => ({ marginTop: 12, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: c.ink, borderBottomWidth: 1, borderBottomColor: c.ink, opacity: pressed ? 0.65 : 1 })}
+        >
+          <Txt size={14}>{`${year} 年度回顧`}</Txt>
+          <Ionicons name="chevron-forward" size={14} color={c.ink} />
+        </Pressable>
       </View>
     </Screen>
   );
