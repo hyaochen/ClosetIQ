@@ -43,11 +43,13 @@ export function WishlistPane({ onSwitch }: { onSwitch: (m: 'items' | 'wishlist')
         </View>
       </View>
       <WardrobeSegment mode="wishlist" wishCount={counts.WANT} onChange={onSwitch} />
-      <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 12, alignItems: 'center' }}>
-        {STATUSES.map((s) => (
-          <Chip key={s} label={`${WISHLIST_STATUS_LABEL[s]} ${counts[s]}`} selected={status === s} onPress={() => setStatus(s)} />
-        ))}
-      </View>
+      {all.length > 0 ? (
+        <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 12, alignItems: 'center' }}>
+          {STATUSES.map((s) => (
+            <Chip key={s} label={`${WISHLIST_STATUS_LABEL[s]} ${counts[s]}`} selected={status === s} onPress={() => setStatus(s)} />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 

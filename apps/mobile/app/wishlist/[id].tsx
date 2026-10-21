@@ -105,11 +105,13 @@ export default function WishlistDetailScreen() {
 
   const price = formatPrice(item.price);
   const catLabel = ClothingCategoryLabel[item.category as keyof typeof ClothingCategoryLabel] ?? item.category;
-  const verdict = analysis ? scoreVerdict(analysis.score) : null;
+  
   const similar = analysis?.similarItems ?? [];
   const strong = similar.filter((s) => s.matchType === 'COLOR');
   const weak = similar.filter((s) => s.matchType !== 'COLOR');
   const lowData = !!analysis && analysis.totalConsidered < MIN_RELIABLE_CONSIDERED;
+  // 樣本太少時不給入手建議，只標示僅供參考
+  const verdict = analysis ? (lowData ? { label: '樣本少，僅供參考', warn: false } : scoreVerdict(analysis.score)) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
@@ -162,8 +164,8 @@ export default function WishlistDetailScreen() {
               <View style={{ paddingVertical: 20 }}><Txt tone="mute" size={13}>購前分析暫時算不出來，稍後再試。</Txt></View>
             ) : (
               <>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 10 }}>
-                  <Numeral size={56} style={{ lineHeight: 52 }} accessibilityLabel={`${analysis.compatibleCount} 件`}>{String(analysis.compatibleCount)}</Numeral>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 10, paddingBottom: 6 }}>
+                  <Numeral size={56} style={{ lineHeight: 58 }} accessibilityLabel={`${analysis.compatibleCount} 件`}>{String(analysis.compatibleCount)}</Numeral>
                   <Txt size={13} style={{ paddingBottom: 4, flex: 1 }}>件現有衣物能和它搭配</Txt>
                 </View>
 
@@ -175,12 +177,12 @@ export default function WishlistDetailScreen() {
                   </View>
                 ) : null}
 
-                {analysis.byCategory.length > 0 ? (
+                {analysis.byCategory.some((b) => b.total > 0) ? (
                   <View style={{ gap: 6, marginTop: 10 }}>
-                    {analysis.byCategory.map((b) => (
+                    {analysis.byCategory.filter((b) => b.total > 0).map((b) => (
                       <View key={b.category} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 20 }}>
                         <Txt size={12} tone="mute" style={{ width: 34, lineHeight: 18 }}>
-                          {ClothingCategoryLabel[b.category as keyof typeof ClothingCategoryLabel] ?? b.category}
+                          {b.category === 'DRESS' ? '洋裝' : ClothingCategoryLabel[b.category as keyof typeof ClothingCategoryLabel] ?? b.category}
                         </Txt>
                         <BarMeter ratio={b.total ? b.compatible / b.total : 0} height={8} />
                         <Txt size={12} style={{ width: 44, textAlign: 'right', lineHeight: 18 }}>{b.compatible} / {b.total}</Txt>

@@ -149,7 +149,7 @@ export function WishlistFields({
       <FieldRow label="價格">
         <TextField value={form.price} onChangeText={form.setPrice} placeholder="預計價格（元）" keyboardType="numeric" accessibilityLabel="價格" />
       </FieldRow>
-      <FieldRow label="連結" stacked>
+      <FieldRow label="連結">
         <TextField
           value={form.url}
           onChangeText={form.setUrl}
