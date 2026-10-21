@@ -279,7 +279,6 @@ export interface WardrobeGap {
   count: number;
   min: number;
 }
-=======
 
 // ---- P5 ----
 // 週穿搭計畫、天氣預報、旅行打包
@@ -374,3 +373,112 @@ export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type CreateTripItemInput = z.infer<typeof createTripItemSchema>;
 export type UpdateTripItemInput = z.infer<typeof updateTripItemSchema>;
+=======
+
+// ---- P3 ----
+// OOTD photo diary and monthly / yearly recap
+
+const monthString = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, '月份格式需為 YYYY-MM');
+const dateString = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, '日期格式需為 YYYY-MM-DD');
+
+export const monthQuerySchema = z.object({ month: monthString });
+export const yearQuerySchema = z.object({
+  year: z.string().regex(/^\d{4}$/, '年份格式需為 YYYY'),
+});
+
+// POST /api/wear-logs/photo?date=YYYY-MM-DD (date defaults to today in Asia/Taipei)
+export const wearLogPhotoCreateQuerySchema = z.object({
+  date: dateString.optional(),
+});
+
+// PATCH /api/wear-logs/:id  (fill in items later after a photo-first log)
+export const updateWearLogSchema = z.object({
+  itemIds: z.array(z.string().uuid()).optional(),
+  outfitId: z.string().uuid().nullable().optional(),
+  occasion: occasionEnum.nullable().optional(),
+  weatherTemp: z.number().int().min(-50).max(60).nullable().optional(),
+  weatherCondition: weatherConditionEnum.nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+export type UpdateWearLogInput = z.infer<typeof updateWearLogSchema>;
+export type MonthQuery = z.infer<typeof monthQuerySchema>;
+export type YearQuery = z.infer<typeof yearQuerySchema>;
+
+export interface WearLogPhotoPaths {
+  photoOriginalPath: string | null;
+  photoDisplayPath: string | null;
+  photoThumbnailPath: string | null;
+}
+
+export interface JournalItemThumb {
+  id: string;
+  name: string;
+  category: string;
+  colors: string[];
+  thumbnailPath: string | null;
+}
+
+export interface JournalLog extends WearLogPhotoPaths {
+  id: string;
+  date: string; // YYYY-MM-DD
+  occasion: string | null;
+  notes: string | null;
+  items: JournalItemThumb[];
+}
+
+export interface JournalDay {
+  date: string; // YYYY-MM-DD
+  logCount: number;
+  // photo of the day: first log (by createdAt) that has a photo, else null
+  photoThumbnailPath: string | null;
+  photoDisplayPath: string | null;
+  logs: JournalLog[];
+}
+
+// GET /api/wear-logs?month=YYYY-MM  -> only days that have at least one log
+export interface JournalMonthResponse {
+  month: string;
+  days: JournalDay[];
+}
+
+export interface RecapItem {
+  id: string;
+  name: string;
+  category: string;
+  thumbnailPath: string | null;
+  count: number;
+}
+
+export interface RecapPair {
+  items: [
+    { id: string; name: string; thumbnailPath: string | null },
+    { id: string; name: string; thumbnailPath: string | null },
+  ];
+  count: number;
+}
+
+export interface RecapCore {
+  daysLogged: number;
+  wearLogCount: number;
+  itemsWorn: number;
+  wardrobeSize: number;
+  usageRate: number; // 0..1, 4 decimals
+  topItems: RecapItem[];
+  topPairs: RecapPair[];
+}
+
+export interface MonthlyRecap extends RecapCore {
+  month: string;
+  throughDate: string; // today (Taipei) for the current month, else last day of month
+  previous: { month: string; daysLogged: number; usageRate: number; wardrobeSize: number };
+  usageRateDelta: number; // current - previous, 4 decimals
+}
+
+export interface YearlyRecap extends RecapCore {
+  year: number;
+  monthlyDaysLogged: number[]; // 12 entries, Jan..Dec
+  monthlyUsageRate: number[]; // 12 entries
+  previous: { year: number; daysLogged: number; usageRate: number; wardrobeSize: number };
+  usageRateDelta: number;
+}
