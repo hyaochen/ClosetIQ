@@ -26,6 +26,9 @@ import { p5Routes } from './routes/p5.js'; // P5
 // ---- P3 ----
 import { journalRoutes } from './routes/journal.js';
 import { recapRoutes } from './routes/recap.js';
+// ---- P2 ----
+import { cutoutRoutes } from './routes/cutout.js';
+import { analyzeRoutes } from './routes/analyze.js';
 
 const app = Fastify({
   logger: {
@@ -76,6 +79,9 @@ async function start() {
   // ---- P3 ----
   await app.register(journalRoutes);
   await app.register(recapRoutes);
+  // ---- P2 ----
+  await app.register(cutoutRoutes);
+  await app.register(analyzeRoutes);
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

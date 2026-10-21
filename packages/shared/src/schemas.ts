@@ -373,7 +373,6 @@ export type CreateTripInput = z.infer<typeof createTripSchema>;
 export type UpdateTripInput = z.infer<typeof updateTripSchema>;
 export type CreateTripItemInput = z.infer<typeof createTripItemSchema>;
 export type UpdateTripItemInput = z.infer<typeof updateTripItemSchema>;
-=======
 
 // ---- P3 ----
 // OOTD photo diary and monthly / yearly recap
@@ -482,3 +481,47 @@ export interface YearlyRecap extends RecapCore {
   previous: { year: number; daysLogged: number; usageRate: number; wardrobeSize: number };
   usageRateDelta: number;
 }
+
+// ---- P2 ---- AI 辨識（POST /api/items/analyze）與去背
+
+export const analyzeByImageIdSchema = z.object({
+  imageId: z.string().uuid(),
+});
+
+const confidence = z.number().min(0).max(1);
+
+/** 單一欄位建議：值 + 信心值（0-1）。欄位值不合法時 API 會把整個欄位設為 null */
+export function suggestionField<T extends z.ZodTypeAny>(value: T) {
+  return z.object({ value, confidence }).nullable();
+}
+
+export const hexColorSchema = z.string().regex(/^#[0-9A-F]{6}$/);
+
+export const itemSuggestionSchema = z.object({
+  category: suggestionField(clothingCategoryEnum),
+  subcategory: suggestionField(z.string().min(1).max(30)),
+  colorFamily: suggestionField(colorFamilyEnum),
+  colors: suggestionField(z.array(hexColorSchema).min(1).max(3)),
+  pattern: suggestionField(patternEnum),
+  material: suggestionField(z.string().min(1).max(30)),
+  seasons: suggestionField(z.array(seasonEnum).min(1).max(4)),
+  occasions: suggestionField(z.array(occasionEnum).min(1).max(5)),
+  nameSuggestion: suggestionField(z.string().min(1).max(50)),
+});
+
+export const analyzeResponseSchema = z.object({
+  provider: z.enum(['claude', 'mock']),
+  model: z.string(),
+  suggestion: itemSuggestionSchema,
+  usage: z.object({
+    inputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    estimatedCostUsd: z.number().nonnegative(),
+  }),
+  quota: z.object({ limit: z.number().int(), used: z.number().int(), remaining: z.number().int() }),
+});
+
+export const cutoutStatusEnum = z.enum(['NONE', 'PENDING', 'DONE', 'FAILED']);
+
+export type ItemSuggestion = z.infer<typeof itemSuggestionSchema>;
+export type AnalyzeResponse = z.infer<typeof analyzeResponseSchema>;
