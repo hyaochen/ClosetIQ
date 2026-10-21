@@ -160,3 +160,123 @@ export type LaundryBatchInput = z.infer<typeof laundryBatchSchema>;
 export type BulkMoveInput = z.infer<typeof bulkMoveSchema>;
 export type CreateStorageLocationInput = z.infer<typeof createStorageLocationSchema>;
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
+
+// ---- P6 ----
+// ============ Wishlist ============
+
+export const WishlistStatus = {
+  WANT: 'WANT',
+  BOUGHT: 'BOUGHT',
+  DROPPED: 'DROPPED',
+} as const;
+export type WishlistStatus = (typeof WishlistStatus)[keyof typeof WishlistStatus];
+
+const wishlistStatusEnum = z.nativeEnum(WishlistStatus);
+
+// url 只存不抓：僅接受 http(s)
+const httpUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((v) => {
+    try {
+      const u = new URL(v);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, '商品連結必須是 http 或 https 網址');
+
+export const createWishlistItemSchema = z.object({
+  name: z.string().trim().min(1, '請輸入名稱').max(100),
+  category: clothingCategoryEnum,
+  subcategory: z.string().max(50).optional(),
+  colorFamily: colorFamilyEnum,
+  colors: z.array(z.string()).max(5).optional().default([]),
+  pattern: patternEnum.optional(),
+  // 空陣列 = 不限（視為四季／所有場合）
+  seasons: z.array(seasonEnum).optional().default([]),
+  occasions: z.array(occasionEnum).optional().default([]),
+  price: z.number().min(0).max(99999999).optional(),
+  url: httpUrl.optional(),
+  note: z.string().max(500).optional(),
+});
+
+export const updateWishlistItemSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  category: clothingCategoryEnum.optional(),
+  subcategory: z.string().max(50).nullable().optional(),
+  colorFamily: colorFamilyEnum.optional(),
+  colors: z.array(z.string()).max(5).optional(),
+  pattern: patternEnum.nullable().optional(),
+  seasons: z.array(seasonEnum).optional(),
+  occasions: z.array(occasionEnum).optional(),
+  price: z.number().min(0).max(99999999).nullable().optional(),
+  url: httpUrl.nullable().optional(),
+  note: z.string().max(500).nullable().optional(),
+  // 只允許 WANT / DROPPED；BOUGHT 只能經由 purchase 端點
+  status: z.enum(['WANT', 'DROPPED']).optional(),
+});
+
+export const wishlistQuerySchema = z.object({
+  status: wishlistStatusEnum.optional(),
+  category: clothingCategoryEnum.optional(),
+});
+
+export const purchaseWishlistItemSchema = z.object({
+  brand: z.string().max(50).optional(),
+  size: z.string().max(20).optional(),
+  material: z.string().max(50).optional(),
+  purchaseDate: z.string().optional(),
+  purchaseLocation: z.string().max(100).optional(),
+  purchasePrice: z.number().min(0).optional(), // 預設沿用願望清單 price
+  condition: conditionEnum.optional(),
+  seasons: z.array(seasonEnum).optional(),
+  occasions: z.array(occasionEnum).optional(),
+});
+
+export type CreateWishlistItemInput = z.infer<typeof createWishlistItemSchema>;
+export type UpdateWishlistItemInput = z.infer<typeof updateWishlistItemSchema>;
+export type WishlistQuery = z.infer<typeof wishlistQuerySchema>;
+export type PurchaseWishlistItemInput = z.infer<typeof purchaseWishlistItemSchema>;
+
+// 購前分析／衣櫃缺口 回傳型別（前端使用）
+export interface WishlistCategoryCompat {
+  category: ClothingCategory;
+  compatible: number;
+  total: number;
+}
+
+export interface WishlistSimilarItem {
+  id: string;
+  name: string;
+  category: ClothingCategory;
+  subcategory: string | null;
+  colorFamily: ColorFamily;
+  matchType: 'COLOR' | 'SUBCATEGORY'; // COLOR=同類別同色系(強)；SUBCATEGORY=同款式不同色(弱)
+  thumbnail: string | null;
+  recentWearCount: number; // 近 90 天
+  totalWearCount: number;
+}
+
+export interface WishlistAnalysis {
+  compatibleCount: number;
+  totalConsidered: number;
+  byCategory: WishlistCategoryCompat[];
+  similarItems: WishlistSimilarItem[];
+  score: number; // 0-100
+  reasons: string[];
+}
+
+export type GapSeverity = 'high' | 'medium' | 'low';
+
+export interface WardrobeGap {
+  label: string;
+  detail: string;
+  severity: GapSeverity;
+  kind: 'occasion' | 'season';
+  occasion?: Occasion;
+  season?: Season;
+  count: number;
+  min: number;
+}
