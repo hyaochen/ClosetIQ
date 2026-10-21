@@ -33,6 +33,7 @@ const theirs = await mkItem(Bt, 'tee');
 const o = await api('POST', '/api/outfits', A, { name: '秋日通勤', itemIds: Object.values(mine).map((m) => m.itemId) });
 ok(o.status === 201, 'create outfit'); const oid = o.json.outfit.id;
 
+{ const d = await api('GET', `/api/outfits/${oid}`, A); ok(d.status === 200 && typeof d.json.outfit?._count?.wearLogs === 'number', 'outfit detail returns _count.wearLogs'); }
 ok((await api('POST', `/api/outfits/${oid}/render`, null)).status === 401, 'render without token -> 401');
 ok((await api('POST', `/api/outfits/${oid}/render`, A)).status === 409, 'render before layout -> 409');
 

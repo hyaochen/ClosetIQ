@@ -12,6 +12,7 @@ import { useThemeStore } from '@/lib/theme-store';
 import { useColors } from '@/lib/theme';
 import { useColorScheme } from 'nativewind';
 import { AlertModal } from '@/components/AlertModal';
+import { ImageRegistryWarmup } from '@/components/ImageRegistryWarmup';
 
 export default function RootLayout() {
   const loadSession = useAuthStore((s) => s.loadSession);
@@ -42,6 +43,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ImageRegistryWarmup />
         <View style={{ flex: 1, backgroundColor: c.paper }}>
           <Stack
             screenOptions={{

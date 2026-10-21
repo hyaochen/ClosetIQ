@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { View, Pressable, ActivityIndicator, type ViewStyle } from 'react-native';
+import { View, Pressable, ActivityIndicator, Platform, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, MIN_TOUCH } from '@/lib/theme';
 import { Txt } from './Text';
@@ -105,6 +105,9 @@ export function Chip({
   );
 }
 
+/** web：標籤小字在淺色底上會被瀏覽器用 LCD 次像素描邊（看起來偏藍）；提升成獨立圖層強制灰階抗鋸齒 */
+const WEB_GRAY_AA: ViewStyle = (Platform.OS === 'web' ? { willChange: 'transform' } : {}) as ViewStyle;
+
 export type StatusKind = 'DIRTY' | 'CLEANING' | 'OFF_SEASON';
 
 /** 狀態標籤：同時用顏色與文字（待洗 / 送洗中 / 季外） */
@@ -116,7 +119,7 @@ export function StatusTag({ kind, style }: { kind: StatusKind; style?: ViewStyle
     OFF_SEASON: { label: '季外', bg: c.paper, fg: c.ink, bd: c.ink },
   }[kind];
   return (
-    <View style={[{ alignSelf: 'flex-start', backgroundColor: map.bg, borderWidth: 1, borderColor: map.bd, paddingHorizontal: 7, paddingVertical: 1 }, style]}>
+    <View style={[{ alignSelf: 'flex-start', backgroundColor: map.bg, borderWidth: 1, borderColor: map.bd, paddingHorizontal: 7, paddingVertical: 1 }, WEB_GRAY_AA, style]}>
       <Txt size={11} letterSpacing={1.1} style={{ color: map.fg, lineHeight: 17 }}>{map.label}</Txt>
     </View>
   );

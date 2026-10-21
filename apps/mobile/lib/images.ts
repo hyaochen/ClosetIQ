@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 export const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
 
 export function imageUrl(path: string): string {
@@ -21,6 +22,28 @@ export type ImageLike = {
  */
 const registry = new Map<string, ImageLike>();
 
+// 登記表有新增／變動時通知畫面重畫（深連結重新整理時，頁面會比暖機請求先畫出來）
+let version = 0;
+const listeners = new Set<() => void>();
+let notifyQueued = false;
+function bump() {
+  version++;
+  if (notifyQueued) return;
+  notifyQueued = true;
+  Promise.resolve().then(() => {
+    notifyQueued = false;
+    listeners.forEach((l) => l());
+  });
+}
+/** 讓元件在去背登記表更新時重畫（只拿到縮圖路徑字串、用 tileImage/tileUrl 的元件都要呼叫） */
+export function useImagesVersion(): number {
+  return useSyncExternalStore(
+    (cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; },
+    () => version,
+    () => version,
+  );
+}
+
 export function registerImages(data: unknown, depth = 0): void {
   if (!data || typeof data !== 'object' || depth > 8) return;
   if (Array.isArray(data)) {
@@ -29,6 +52,8 @@ export function registerImages(data: unknown, depth = 0): void {
   }
   const o = data as Record<string, unknown>;
   if (typeof o.thumbnailPath === 'string' && 'cutoutStatus' in o) {
+    const prev = registry.get(o.thumbnailPath);
+    if (!prev || prev.cutoutStatus !== o.cutoutStatus || prev.cutoutThumbPath !== (o as ImageLike).cutoutThumbPath) bump();
     registry.set(o.thumbnailPath, o as ImageLike);
   }
   for (const k in o) {

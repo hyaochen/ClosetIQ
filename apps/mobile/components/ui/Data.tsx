@@ -3,7 +3,7 @@ import { View, Pressable, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/lib/theme';
-import { imageUrl, tileImage, type ImageLike } from '@/lib/images';
+import { imageUrl, tileImage, type ImageLike, useImagesVersion } from '@/lib/images';
 import { Txt, Numeral } from './Text';
 
 /** 斜體大數字 + 小標，格間直線分隔，上下 1px 墨線 */
@@ -47,6 +47,7 @@ export function GarmentTile({
   style?: ViewStyle;
   fit?: 'contain' | 'cover';
 }) {
+  useImagesVersion();
   const c = useColors();
   // 去背完成：透明圖放在卡色底上（卡色來自 token，深色模式自動換色）；否則用原縮圖
   const shown = tileImage(path, image);

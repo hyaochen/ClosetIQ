@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { RecapCore, RecapItem, RecapPair } from '@closet/shared';
 import { useColors } from '@/lib/theme';
-import { tileUrl } from '@/lib/images';
+import { tileUrl, useImagesVersion } from '@/lib/images';
 import { Txt, Numeral, GarmentTile } from '@/components/ui';
 
 /** 與上期比較：箭頭圖示 + 文字（上升/下降/持平） */
@@ -37,6 +37,7 @@ export function TopItemRow({ item, rank }: { item: RecapItem; rank: number }) {
 }
 
 export function TopPairRow({ pair, rank }: { pair: RecapPair; rank: number }) {
+  useImagesVersion();
   const c = useColors();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.line }}>

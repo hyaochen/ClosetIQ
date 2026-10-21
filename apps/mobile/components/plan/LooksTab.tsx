@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { imageUrl, tileUrl } from '@/lib/images';
+import { imageUrl, tileUrl, useImagesVersion } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { Txt, Serif, Button } from '@/components/ui';
 
@@ -12,6 +12,7 @@ const GAP = 12;
 
 /** 作品集：2 欄卡片；有封面圖用封面，沒有就用衣物縮圖拼排 */
 export function LooksTab({ maxWidth }: { maxWidth: number }) {
+  useImagesVersion();
   const c = useColors();
   const { width } = useWindowDimensions();
   const cols = 2;

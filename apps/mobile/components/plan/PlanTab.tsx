@@ -3,7 +3,7 @@ import { View, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { tileUrl } from '@/lib/images';
+import { tileUrl, useImagesVersion } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -171,6 +171,7 @@ function DayRow({
   wearing: boolean;
   onWear: () => void;
 }) {
+  useImagesVersion();
   const c = useColors();
   const isToday = day.date === today;
   const { d } = parseYmd(day.date);

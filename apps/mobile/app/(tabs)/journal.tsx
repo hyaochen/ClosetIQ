@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useColors } from '@/lib/theme';
-import { imageUrl, tileUrl } from '@/lib/images';
+import { imageUrl, tileUrl, useImagesVersion } from '@/lib/images';
 import { localDateString } from '@/lib/queries';
 import {
   MONTH_EN, MONTH_ZH, WEEKDAYS_MON, pad, shiftMonth, useJournalMonth, useMonthlyRecap, uploadOotdForDate, pct,
@@ -16,6 +16,7 @@ import { Delta, TopLists } from '@/components/journal/Recap';
 import type { JournalDay } from '@closet/shared';
 
 export default function JournalScreen() {
+  useImagesVersion();
   const c = useColors();
   const params = useLocalSearchParams<{ month?: string }>();
   const todayKey = useMemo(() => localDateString(), []);

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
-import { tileUrl } from '@/lib/images';
+import { tileUrl, useImagesVersion } from '@/lib/images';
 import { useColors } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { localDateString } from '@/lib/queries';
@@ -28,6 +28,7 @@ type Mode = 'outfit' | 'items';
 
 /** 安排某一天：選既有穿搭，或自己挑衣物；當天可「就穿這套」轉成穿著紀錄 */
 export default function PlanDayScreen() {
+  useImagesVersion();
   const c = useColors();
   const { date } = useLocalSearchParams<{ date: string }>();
   const today = localDateString();
