@@ -123,3 +123,97 @@ export type UpdateOutfitInput = z.infer<typeof updateOutfitSchema>;
 export type CreateWearLogInput = z.infer<typeof createWearLogSchema>;
 export type ItemsQuery = z.infer<typeof itemsQuerySchema>;
 export type SuggestOutfitInput = z.infer<typeof suggestOutfitSchema>;
+
+// ---- P5 ----
+// 週穿搭計畫、天氣預報、旅行打包
+
+const ymdString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式須為 YYYY-MM-DD');
+
+export const weatherForecastQuerySchema = z
+  .object({
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lon: z.coerce.number().min(-180).max(180).optional(),
+    city: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine((v) => v.city !== undefined || (v.lat !== undefined && v.lon !== undefined), {
+    message: '請提供 lat 與 lon，或 city',
+  });
+
+// 計畫相關 query：lat/lon 省略時使用台北
+export const planRangeQuerySchema = z.object({
+  from: ymdString.optional(),
+  to: ymdString.optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lon: z.coerce.number().min(-180).max(180).optional(),
+});
+
+export const autoPlanQuerySchema = planRangeQuerySchema.extend({
+  occasion: occasionEnum.optional(),
+});
+
+// PUT /api/plans/:date：itemIds 或 outfitId 至少一個；兩者都給時以 itemIds 為準
+export const upsertPlanSchema = z
+  .object({
+    outfitId: z.string().uuid().optional(),
+    itemIds: z.array(z.string().uuid()).max(20).optional(),
+    note: z.string().max(200).optional(),
+  })
+  .refine((v) => v.outfitId !== undefined || (v.itemIds !== undefined && v.itemIds.length > 0), {
+    message: '請提供 outfitId 或至少一件衣物',
+  });
+
+export const createTripSchema = z
+  .object({
+    name: z.string().trim().min(1, '請輸入旅行名稱').max(100),
+    destination: z.string().trim().min(1, '請輸入目的地').max(100),
+    lat: z.number().min(-90).max(90).optional(),
+    lon: z.number().min(-180).max(180).optional(),
+    startDate: ymdString,
+    endDate: ymdString,
+  })
+  .refine((v) => v.endDate >= v.startDate, { message: '結束日期不可早於出發日期', path: ['endDate'] });
+
+export const updateTripSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  destination: z.string().trim().min(1).max(100).optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lon: z.number().min(-180).max(180).nullable().optional(),
+  startDate: ymdString.optional(),
+  endDate: ymdString.optional(),
+});
+
+export const createTripItemSchema = z
+  .object({
+    clothingItemId: z.string().uuid().optional(),
+    customName: z.string().trim().min(1).max(50).optional(),
+    category: clothingCategoryEnum.optional(),
+    quantity: z.number().int().min(1).max(99).optional().default(1),
+    reason: z.string().max(100).optional(),
+  })
+  .refine((v) => v.clothingItemId !== undefined || v.customName !== undefined, {
+    message: '請選擇衣物或輸入自訂項目名稱',
+  });
+
+export const updateTripItemSchema = z.object({
+  packed: z.boolean().optional(),
+  quantity: z.number().int().min(1).max(99).optional(),
+  customName: z.string().trim().min(1).max(50).optional(),
+  reason: z.string().max(100).nullable().optional(),
+});
+
+export interface ForecastDay {
+  date: string; // YYYY-MM-DD（台北時區）
+  min: number;
+  max: number;
+  condition: WeatherCondition;
+  rainChance: number; // 0-100
+}
+
+export type WeatherForecastQuery = z.infer<typeof weatherForecastQuerySchema>;
+export type PlanRangeQuery = z.infer<typeof planRangeQuerySchema>;
+export type AutoPlanQuery = z.infer<typeof autoPlanQuerySchema>;
+export type UpsertPlanInput = z.infer<typeof upsertPlanSchema>;
+export type CreateTripInput = z.infer<typeof createTripSchema>;
+export type UpdateTripInput = z.infer<typeof updateTripSchema>;
+export type CreateTripItemInput = z.infer<typeof createTripItemSchema>;
+export type UpdateTripItemInput = z.infer<typeof updateTripItemSchema>;

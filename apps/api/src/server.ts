@@ -18,6 +18,7 @@ import { outfitRoutes } from './routes/outfits.js';
 import { wearLogRoutes } from './routes/wear-logs.js';
 import { statsRoutes } from './routes/stats.js';
 import { suggestionRoutes } from './routes/suggestions.js';
+import { p5Routes } from './routes/p5.js'; // P5
 
 const app = Fastify({
   logger: {
@@ -60,6 +61,7 @@ async function start() {
   await app.register(wearLogRoutes);
   await app.register(statsRoutes);
   await app.register(suggestionRoutes);
+  await app.register(p5Routes); // P5
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
