@@ -1,0 +1,13 @@
+import { account, seedItems, api } from './p5-seed.mjs';
+const t = await account('無金鑰' + Date.now().toString(36));
+await seedItems(t, [{ name: '白T', category: 'TOP' }, { name: '牛仔褲', category: 'BOTTOM' }]);
+const ymd = (n) => new Date(Date.now() + 8 * 3600e3 + n * 86400e3).toISOString().slice(0, 10);
+const f = await api('GET', '/api/weather/forecast?lat=25&lon=121', t);
+console.log('forecast', f.status, f.json.available, f.json.days.length);
+const w = await api('GET', '/api/plans/week', t);
+console.log('week', w.status, w.json.days.length, w.json.days[0].forecast);
+const a = await api('POST', `/api/plans/auto?from=${ymd(0)}&to=${ymd(2)}`, t);
+console.log('auto', a.status, a.json.created.length);
+const tr = (await api('POST', '/api/trips', t, { name: '台中', destination: '台中', startDate: ymd(1), endDate: ymd(2) })).json.trip;
+const g = await api('POST', `/api/trips/${tr.id}/generate`, t);
+console.log('gen', g.status, JSON.stringify(g.json.items.map((i) => [i.name, i.reason])), g.json.warnings);

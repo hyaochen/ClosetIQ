@@ -63,11 +63,11 @@ function trimCache<T>(m: Map<string, T>) {
 }
 
 function conditionFromId(id: number): ForecastDay['condition'] {
-  // 與 suggestions.ts 現行對應一致
+  // 雨/雪對應同 suggestions.ts；注意 suggestions.ts 把 id>=771 全當 WINDY（含 801-804 多雲），這裡不沿用該錯誤
   if (id >= 200 && id < 600) return 'RAINY';
   if (id >= 600 && id < 700) return 'SNOWY';
   if (id === 800) return 'SUNNY';
-  if (id >= 771) return 'WINDY';
+  if (id === 771 || id === 781) return 'WINDY'; // 狂風、龍捲風；801-804 多雲與 7xx 霧霾歸 CLOUDY
   return 'CLOUDY';
 }
 
