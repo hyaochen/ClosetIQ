@@ -1,37 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
 import { loadScoredItems } from '../services/scoring.service.js';
-
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+import { getCurrentWeather } from '../services/weather.service.js';
 
 interface WeatherData {
   temp: number;
   condition: string;
-}
-
-async function fetchWeather(lat: number, lon: number): Promise<WeatherData | null> {
-  if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'your_api_key_here') return null;
-
-  try {
-    const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`
-    );
-    if (!res.ok) return null;
-
-    const data = (await res.json()) as any;
-    const temp = Math.round(data.main.temp);
-    const weatherId = data.weather[0]?.id ?? 0;
-
-    let condition = 'CLOUDY';
-    if (weatherId >= 200 && weatherId < 600) condition = 'RAINY';
-    else if (weatherId >= 600 && weatherId < 700) condition = 'SNOWY';
-    else if (weatherId === 800) condition = 'SUNNY';
-    else if (weatherId >= 771) condition = 'WINDY';
-
-    return { temp, condition };
-  } catch {
-    return null;
-  }
 }
 
 export async function suggestionRoutes(app: FastifyInstance) {
@@ -50,7 +24,8 @@ export async function suggestionRoutes(app: FastifyInstance) {
     // Fetch weather if location provided
     let weather: WeatherData | null = null;
     if (lat !== undefined && lon !== undefined) {
-      weather = await fetchWeather(lat, lon);
+      const cur = await getCurrentWeather(lat, lon); // 失敗回 null，推薦照常運作（不依天氣加分）
+      weather = cur ? { temp: cur.temp, condition: cur.condition } : null;
     }
 
     // Determine target seasons

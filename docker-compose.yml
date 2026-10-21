@@ -31,7 +31,6 @@ services:
       API_PORT: "3001"
       API_HOST: "0.0.0.0"
       IMAGE_STORAGE_PATH: /data/images
-      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8083}
       # ---- P2 ----
       REMBG_URL: http://rembg:7000

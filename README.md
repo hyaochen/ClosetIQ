@@ -103,8 +103,7 @@ IMAGE_STORAGE_PATH=./data/images
 # CORS（使用 Tunnel 時需加入你的網域）
 # CORS_ORIGIN=http://localhost:8083,https://your-domain.com
 
-# OpenWeatherMap API 金鑰（免費方案，選填）
-# OPENWEATHER_API_KEY=your_api_key_here
+# 天氣使用 Open-Meteo，不需要金鑰（舊的 OPENWEATHER_API_KEY 已停用）
 ```
 
 > **重要**：`JWT_SECRET` 和 `JWT_REFRESH_SECRET` 為**必填項目**，未設定則伺服器將無法啟動。

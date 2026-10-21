@@ -60,7 +60,7 @@ function formatTrip(t: TripRow) {
   };
 }
 
-/** 旅行期間的逐日預報摘要；超過 5 天預報窗口的日子 forecast 為 null（無預報） */
+/** 旅行期間的逐日預報摘要；超過 16 天預報窗口的日子 forecast 為 null（無預報） */
 async function tripWeather(t: TripRow) {
   const start = ymdOf(t.startDate);
   const end = ymdOf(t.endDate);
@@ -278,7 +278,7 @@ export async function tripRoutes(app: FastifyInstance) {
 
   // POST /api/trips/:id/generate
   // 規則：上衣 = 天數（最多 14）、下身 = ceil(天數/2)、外套至少 1、有雨加防水外套與雨傘、溫差 >= 10 度加薄外套；
-  // 超過 5 天預報窗口的日子標「無預報」，改用保守規則（帶傘＋外套）並以出發月份判斷季節。
+  // 超過 16 天預報窗口的日子標「無預報」，改用保守規則（帶傘＋外套）並以出發月份判斷季節。
   // 優先選旅行期間有排計畫的衣物，其次依推薦評分。重新產生時保留手動加的與已勾選的項目。
   app.post('/api/trips/:id/generate', async (request, reply) => {
     const { id } = request.params as { id: string };

@@ -1,18 +1,12 @@
 import type { ForecastDay } from '@closet/shared';
 
 // ---- P5 ----
-// OpenWeatherMap 免費方案：5 天 / 3 小時預報（/data/2.5/forecast），彙整成每日摘要。
-// 台北時區切日（UTC+8，無日光節約）；30 分鐘伺服器端快取，座標四捨五入到 0.1 度。
-
-const BASE_URL = () => process.env.OPENWEATHER_BASE_URL || 'https://api.openweathermap.org';
-const apiKey = () => {
-  const k = process.env.OPENWEATHER_API_KEY;
-  return k && k !== 'your_api_key_here' ? k : null;
-};
+// 天氣唯一入口：Open-Meteo（不用金鑰）。現況 + 每日預報最多 16 天；地名查詢用 Open-Meteo geocoding。
+// 30 分鐘伺服器端快取，座標四捨五入到 0.1 度；逾時 5 秒，任何錯誤降級回 null。
 
 export const DEFAULT_LAT = 25.03; // 台北
 export const DEFAULT_LON = 121.56;
-export const FORECAST_DAYS = 5; // 含今天，第 6 天以後無預報
+export const FORECAST_DAYS = 16; // 含今天（Open-Meteo 上限），第 17 天以後無預報
 
 const TTL_MS = 30 * 60 * 1000;
 const GEO_TTL_MS = 24 * 60 * 60 * 1000;
@@ -53,8 +47,114 @@ export function weekdayLabel(ymd: string): string {
   return WEEKDAY_LABELS[new Date(`${ymd}T00:00:00Z`).getUTCDay()];
 }
 
-const cache = new Map<string, { at: number; days: ForecastDay[] }>();
-const geoCache = new Map<string, { at: number; value: { lat: number; lon: number; name: string } | null }>();
+
+const FORECAST_URL = () => process.env.OPEN_METEO_BASE_URL || 'https://api.open-meteo.com';
+const GEOCODING_URL = () => process.env.OPEN_METEO_GEOCODING_URL || 'https://geocoding-api.open-meteo.com';
+const TIMEOUT_MS = Number(process.env.WEATHER_TIMEOUT_MS) || 5000;
+const NEGATIVE_TTL_MS = 60 * 1000; // 上游失敗後 1 分鐘內不再打，避免每個請求都吃 5 秒逾時
+
+/** 強風門檻（km/h，約蒲福 6 級）。WMO 天氣代碼沒有風，所以風只靠風速判斷，雲量代碼 1-3 絕不代表大風。 */
+export const WINDY_KMH = 40;
+
+/**
+ * WMO weather code -> WeatherCondition。
+ * 0 晴、1 大致晴 -> SUNNY；2 局部多雲、3 陰、45/48 霧 -> CLOUDY；
+ * 51-57 毛毛雨、61-67 雨（含凍雨）、80-82 陣雨、95/96/99 雷雨 -> RAINY；
+ * 71-77 雪（含冰粒）、85/86 陣雪 -> SNOWY。未知代碼 -> CLOUDY。
+ */
+export const WMO_CONDITION: Record<number, ForecastDay['condition']> = {
+  0: 'SUNNY',
+  1: 'SUNNY',
+  2: 'CLOUDY',
+  3: 'CLOUDY',
+  45: 'CLOUDY',
+  48: 'CLOUDY',
+  51: 'RAINY',
+  53: 'RAINY',
+  55: 'RAINY',
+  56: 'RAINY',
+  57: 'RAINY',
+  61: 'RAINY',
+  63: 'RAINY',
+  65: 'RAINY',
+  66: 'RAINY',
+  67: 'RAINY',
+  71: 'SNOWY',
+  73: 'SNOWY',
+  75: 'SNOWY',
+  77: 'SNOWY',
+  80: 'RAINY',
+  81: 'RAINY',
+  82: 'RAINY',
+  85: 'SNOWY',
+  86: 'SNOWY',
+  95: 'RAINY',
+  96: 'RAINY',
+  99: 'RAINY',
+};
+
+/** 純函式：WMO 代碼（+ 選填風速 km/h）轉 WeatherCondition。雨雪優先，其次強風，最後才是晴/陰。 */
+export function wmoToCondition(code: number | null | undefined, windKmh?: number | null): ForecastDay['condition'] {
+  const base = code === null || code === undefined ? 'CLOUDY' : (WMO_CONDITION[code] ?? 'CLOUDY');
+  if (base === 'RAINY' || base === 'SNOWY') return base;
+  if (typeof windKmh === 'number' && windKmh >= WINDY_KMH) return 'WINDY';
+  return base;
+}
+
+export interface CurrentWeather {
+  temp: number; // 攝氏，四捨五入
+  condition: ForecastDay['condition'];
+  windKmh: number;
+}
+
+interface OpenMeteoResponse {
+  current?: { temperature_2m?: number; weather_code?: number; wind_speed_10m?: number };
+  daily?: {
+    time?: string[];
+    weather_code?: (number | null)[];
+    temperature_2m_max?: (number | null)[];
+    temperature_2m_min?: (number | null)[];
+    precipitation_probability_max?: (number | null)[];
+    wind_speed_10m_max?: (number | null)[];
+  };
+}
+
+/** 純函式：Open-Meteo daily 區塊轉 ForecastDay[]（缺溫度的日子略過） */
+export function summarizeDaily(daily: OpenMeteoResponse['daily']): ForecastDay[] {
+  const times = daily?.time ?? [];
+  const out: ForecastDay[] = [];
+  for (let i = 0; i < times.length; i++) {
+    const max = daily?.temperature_2m_max?.[i];
+    const min = daily?.temperature_2m_min?.[i];
+    if (typeof max !== 'number' || typeof min !== 'number') continue;
+    out.push({
+      date: times[i],
+      min: Math.round(min),
+      max: Math.round(max),
+      condition: wmoToCondition(daily?.weather_code?.[i], daily?.wind_speed_10m_max?.[i]),
+      rainChance: Math.round(daily?.precipitation_probability_max?.[i] ?? 0),
+    });
+  }
+  return out;
+}
+
+export function summarizeCurrent(cur: OpenMeteoResponse['current']): CurrentWeather | null {
+  if (!cur || typeof cur.temperature_2m !== 'number') return null;
+  const wind = typeof cur.wind_speed_10m === 'number' ? cur.wind_speed_10m : 0;
+  return { temp: Math.round(cur.temperature_2m), condition: wmoToCondition(cur.weather_code, wind), windKmh: Math.round(wind) };
+}
+
+type Bundle = { current: CurrentWeather | null; days: ForecastDay[] };
+const cache = new Map<string, { at: number; value: Bundle }>();
+const failedAt = new Map<string, number>();
+
+export interface GeoResult {
+  lat: number;
+  lon: number;
+  name: string;
+  timezone: string | null;
+}
+const geoCache = new Map<string, { at: number; value: GeoResult | null }>();
 
 function trimCache<T>(m: Map<string, T>) {
   if (m.size <= MAX_CACHE) return;
@@ -62,92 +162,88 @@ function trimCache<T>(m: Map<string, T>) {
   if (first !== undefined) m.delete(first);
 }
 
-function conditionFromId(id: number): ForecastDay['condition'] {
-  // 雨/雪對應同 suggestions.ts；注意 suggestions.ts 把 id>=771 全當 WINDY（含 801-804 多雲），這裡不沿用該錯誤
-  if (id >= 200 && id < 600) return 'RAINY';
-  if (id >= 600 && id < 700) return 'SNOWY';
-  if (id === 800) return 'SUNNY';
-  if (id === 771 || id === 781) return 'WINDY'; // 狂風、龍捲風；801-804 多雲與 7xx 霧霾歸 CLOUDY
-  return 'CLOUDY';
+/** 測試用：清掉所有快取 */
+export function clearWeatherCache() {
+  cache.clear();
+  failedAt.clear();
+  geoCache.clear();
 }
 
-interface Slot {
-  dt: number;
-  main: { temp_min: number; temp_max: number };
-  weather?: { id: number }[];
-  pop?: number;
-}
-
-/** 純函式：把 3 小時預報切成台北時區每日摘要（可單獨測試） */
-export function summarizeForecast(list: Slot[], today: string): ForecastDay[] {
-  const byDate = new Map<string, Slot[]>();
-  for (const slot of list) {
-    const date = taipeiYmd(slot.dt * 1000);
-    if (diffDays(today, date) < 0 || diffDays(today, date) >= FORECAST_DAYS) continue;
-    if (!byDate.has(date)) byDate.set(date, []);
-    byDate.get(date)!.push(slot);
-  }
-  const out: ForecastDay[] = [];
-  for (const [date, slots] of [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-    const min = Math.round(Math.min(...slots.map((s) => s.main.temp_min)));
-    const max = Math.round(Math.max(...slots.map((s) => s.main.temp_max)));
-    const rainChance = Math.round(Math.max(...slots.map((s) => s.pop ?? 0)) * 100);
-    const counts = new Map<ForecastDay['condition'], number>();
-    for (const s of slots) {
-      const c = conditionFromId(s.weather?.[0]?.id ?? 0);
-      counts.set(c, (counts.get(c) ?? 0) + 1);
-    }
-    // 嚴重天氣優先：有雪 > 有雨 > 其餘取出現最多
-    let condition: ForecastDay['condition'];
-    if (counts.has('SNOWY')) condition = 'SNOWY';
-    else if (counts.has('RAINY')) condition = 'RAINY';
-    else condition = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'CLOUDY';
-    out.push({ date, min, max, condition, rainChance });
-  }
-  return out;
-}
-
-/** 取得 5 天預報；沒有 API key 或上游失敗回 null（不快取失敗） */
-export async function getForecast(lat: number, lon: number): Promise<ForecastDay[] | null> {
-  const key = apiKey();
-  if (!key) return null;
-
+async function loadBundle(lat: number, lon: number): Promise<Bundle | null> {
   const rl = Math.round(lat * 10) / 10;
   const ro = Math.round(lon * 10) / 10;
-  const today = todayTaipei();
   const ck = `${rl},${ro}`;
   const hit = cache.get(ck);
-  if (hit && Date.now() - hit.at < TTL_MS) {
-    // 快取跨日時重新切日
-    if (hit.days.length === 0 || hit.days[0].date >= today) return hit.days;
-  }
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
+  const bad = failedAt.get(ck);
+  if (bad && Date.now() - bad < NEGATIVE_TTL_MS) return null;
 
   try {
-    const res = await fetch(`${BASE_URL()}/data/2.5/forecast?lat=${rl}&lon=${ro}&units=metric&appid=${key}`);
-    if (!res.ok) return null;
-    const data = (await res.json()) as { list?: Slot[] };
-    if (!Array.isArray(data.list)) return null;
-    const days = summarizeForecast(data.list, today);
-    cache.set(ck, { at: Date.now(), days });
+    const url =
+      `${FORECAST_URL()}/v1/forecast?latitude=${rl}&longitude=${ro}` +
+      `&current=temperature_2m,weather_code,wind_speed_10m` +
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max` +
+      `&timezone=auto&forecast_days=${FORECAST_DAYS}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`open-meteo ${res.status}`);
+    const data = (await res.json()) as OpenMeteoResponse;
+    const value: Bundle = { current: summarizeCurrent(data.current), days: summarizeDaily(data.daily) };
+    if (value.days.length === 0 && !value.current) throw new Error('open-meteo empty');
+    cache.set(ck, { at: Date.now(), value });
     trimCache(cache);
-    return days;
+    failedAt.delete(ck);
+    return value;
   } catch {
+    failedAt.set(ck, Date.now());
+    trimCache(failedAt);
     return null;
   }
 }
 
-/** 城市名稱轉座標（OpenWeatherMap geocoding），快取一天 */
-export async function geocodeCity(q: string): Promise<{ lat: number; lon: number; name: string } | null> {
-  const key = apiKey();
-  if (!key) return null;
-  const ck = q.trim().toLowerCase();
+/** 每日預報（最多 16 天，含今天；日期為該座標當地日期）；上游失敗回 null */
+export async function getForecast(lat: number, lon: number): Promise<ForecastDay[] | null> {
+  const b = await loadBundle(lat, lon);
+  return b ? b.days : null;
+}
+
+/** 目前天氣；上游失敗回 null */
+export async function getCurrentWeather(lat: number, lon: number): Promise<CurrentWeather | null> {
+  const b = await loadBundle(lat, lon);
+  return b ? b.current : null;
+}
+
+// Open-Meteo 的中文地名索引不全（實測「台北」「首爾」查不到），常用旅遊城市補一張別名表轉成英文再查。
+const CITY_ALIASES: Record<string, string> = {
+  台北: 'Taipei', 臺北: 'Taipei', 台北市: 'Taipei', 新北: 'New Taipei', 台中: 'Taichung', 臺中: 'Taichung',
+  台南: 'Tainan', 臺南: 'Tainan', 高雄: 'Kaohsiung', 花蓮: 'Hualien', 台東: 'Taitung', 臺東: 'Taitung',
+  首爾: 'Seoul', 釜山: 'Busan', 濟州: 'Jeju', 大阪: 'Osaka', 京都: 'Kyoto', 沖繩: 'Naha', 那霸: 'Naha',
+  札幌: 'Sapporo', 福岡: 'Fukuoka', 名古屋: 'Nagoya', 曼谷: 'Bangkok', 新加坡: 'Singapore', 香港: 'Hong Kong',
+  澳門: 'Macau', 吉隆坡: 'Kuala Lumpur', 河內: 'Hanoi', 胡志明市: 'Ho Chi Minh City', 峇里島: 'Denpasar',
+  倫敦: 'London', 巴黎: 'Paris', 紐約: 'New York', 洛杉磯: 'Los Angeles', 雪梨: 'Sydney', 悉尼: 'Sydney',
+};
+
+async function geoSearch(name: string, language: string): Promise<GeoResult | null> {
+  const res = await fetch(
+    `${GEOCODING_URL()}/v1/search?name=${encodeURIComponent(name)}&count=1&language=${language}&format=json`,
+    { signal: AbortSignal.timeout(TIMEOUT_MS) }
+  );
+  if (!res.ok) throw new Error(`geocoding ${res.status}`);
+  const data = (await res.json()) as { results?: { latitude: number; longitude: number; name: string; timezone?: string }[] };
+  const r = data.results?.[0];
+  return r ? { lat: r.latitude, lon: r.longitude, name: r.name, timezone: r.timezone ?? null } : null;
+}
+
+/** 城市名稱轉座標（Open-Meteo geocoding），快取一天；失敗或找不到回 null */
+export async function geocodeCity(q: string): Promise<GeoResult | null> {
+  const name = q.trim();
+  const ck = name.toLowerCase();
+  if (!ck) return null;
   const hit = geoCache.get(ck);
   if (hit && Date.now() - hit.at < GEO_TTL_MS) return hit.value;
   try {
-    const res = await fetch(`${BASE_URL()}/geo/1.0/direct?q=${encodeURIComponent(q)}&limit=1&appid=${key}`);
-    if (!res.ok) return null;
-    const arr = (await res.json()) as { lat: number; lon: number; name: string }[];
-    const value = arr[0] ? { lat: arr[0].lat, lon: arr[0].lon, name: arr[0].name } : null;
+    let value = await geoSearch(name, 'zh');
+    if (!value && CITY_ALIASES[name]) value = await geoSearch(CITY_ALIASES[name], 'zh');
+    if (!value) value = await geoSearch(name, 'en');
     geoCache.set(ck, { at: Date.now(), value });
     trimCache(geoCache);
     return value;

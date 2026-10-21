@@ -70,7 +70,7 @@ function eachDate(from: string, to: string): string[] {
   return out;
 }
 
-/** 範圍若與預報窗口（今天起 5 天）有交集才去拿預報 */
+/** 範圍若與預報窗口（今天起 16 天）有交集才去拿預報 */
 async function forecastForRange(from: string, to: string, lat?: number, lon?: number) {
   const today = todayTaipei();
   if (to < today || from > addDays(today, FORECAST_DAYS - 1)) return null;

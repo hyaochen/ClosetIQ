@@ -1,6 +1,6 @@
 // P5 smoke：node scripts/p5-smoke.mjs
-// 前置：api 跑在 BASE（預設 http://127.0.0.1:3015），並設 OPENWEATHER_API_KEY=mock-key、OPENWEATHER_BASE_URL=http://127.0.0.1:3016，
-// 且 `node scripts/mock-owm.mjs` 在跑。全部用中文命名的測試帳號與資料。
+// 前置：api 跑在 BASE（預設 http://127.0.0.1:3015），並設 OPEN_METEO_BASE_URL=OPEN_METEO_GEOCODING_URL=http://127.0.0.1:3016，
+// 且 `node scripts/mock-open-meteo.mjs` 在跑。全部用中文命名的測試帳號與資料。
 import { account, seedItems, api } from './p5-seed.mjs';
 
 let fail = 0;
@@ -28,7 +28,7 @@ const idsB = await seedItems(B, [{ name: '乙的上衣', category: 'TOP' }]);
 
 // ---- 預報 ----
 let r = await api('GET', '/api/weather/forecast?lat=25.03&lon=121.56', A);
-ok(r.status === 200 && r.json.available && r.json.days.length >= 4 && r.json.days.length <= 5, '預報回 4-5 天', r.json);
+ok(r.status === 200 && r.json.available && r.json.days.length === 16 && r.json.horizonDays === 16, '預報回 16 天', r.json);
 ok(r.json.days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.date) && typeof d.min === 'number' && typeof d.max === 'number' && d.rainChance >= 0), '預報欄位', r.json.days[0]);
 ok(r.json.days[0].date === today, '第一天是台北今天');
 ok(r.json.days.some((d) => d.condition === 'RAINY' && d.rainChance >= 80), '有雨天且降雨機率 80');
@@ -51,7 +51,15 @@ r = await api('PUT', `/api/plans/${d1}`, A, { itemIds: [ids['藍色條紋襯衫'
 ok(r.status === 200 && r.json.plan.items.length === 2 && r.json.plan.note === null, '同一天 PUT 為整筆取代', r.json);
 r = await api('GET', `/api/plans?from=${today}&to=${plus(6)}`, A);
 ok(r.status === 200 && r.json.days.length === 7 && r.json.days[1].plan.items.length === 2, 'GET plans 回 7 天且含縮圖欄位', r.json.days[1]);
-ok(r.json.days[1].forecast !== null && r.json.days[6].forecast === null, '前 5 天有預報、第 6 天以後 null', [r.json.days[1].forecast, r.json.days[6].forecast]);
+ok(r.json.days[1].forecast !== null && r.json.days[6].forecast !== null, '16 天內第 2、7 天都有預報', [r.json.days[1].forecast, r.json.days[6].forecast]);
+{
+  const rr = await api('GET', `/api/plans?from=${plus(14)}&to=${plus(17)}`, A);
+  ok(rr.json.days[1].forecast !== null && rr.json.days[2].forecast === null, '第 16 天(今天算第 1 天)有預報、第 17 天起 null', rr.json.days.map((d) => d.forecast && d.date));
+  const w4 = (await api('GET', '/api/weather/forecast?lat=25.03&lon=121.56', A)).json.days;
+  ok(w4[4].condition === 'WINDY' && w4[2].condition === 'RAINY' && w4[0].condition === 'CLOUDY', '代碼 2 + 強風 -> WINDY；代碼 63 -> RAINY；代碼 3 -> CLOUDY（不是大風）', w4.slice(0, 5).map((d) => d.condition));
+  const cur = await api('GET', '/api/weather/current?lat=25.03&lon=121.56', A);
+  ok(cur.status === 200 && cur.json.current.temp === 25 && cur.json.current.condition === 'CLOUDY', '現況天氣', cur.json);
+}
 ok('thumbnail' in r.json.days[1].plan.items[0], '計畫衣物附 thumbnail 欄位');
 r = await api('GET', `/api/plans?from=${today}&to=${plus(100)}`, A);
 ok(r.status === 400, '範圍過大 400');
@@ -167,10 +175,10 @@ const idsSeen = gen2.filter((i) => i.clothingItemId).map((i) => i.clothingItemId
 ok(new Set(idsSeen).size === idsSeen.length, '同一件衣物不會出現兩次');
 
 // 超過預報窗口
-r = await api('POST', '/api/trips', A, { name: '長程旅行', destination: 'Tokyo', startDate: plus(3), endDate: plus(9) });
+r = await api('POST', '/api/trips', A, { name: '長程旅行', destination: 'Tokyo', startDate: plus(18), endDate: plus(24) });
 const longId = r.json.trip.id;
 r = await api('POST', `/api/trips/${longId}/generate`, A);
-ok(r.status === 200 && r.json.weather.unknownDates.length >= 4, '超過 5 天預報的日子標無預報', r.json.weather.unknownDates);
+ok(r.status === 200 && r.json.weather.unknownDates.length === 7, '超過 16 天預報的日子標無預報', r.json.weather.unknownDates);
 ok(r.json.items.some((i) => /無預報/.test(i.reason || '') || /日有雨/.test(i.reason || '')), '保守規則 reason', r.json.items.map((i) => i.reason));
 ok(r.json.warnings.some((w) => /無預報/.test(w)), 'warnings 提到無預報', r.json.warnings);
 ok(r.json.items.filter((i) => i.category === 'TOP').length === 6 && r.json.warnings.some((w) => /上衣只有 6 件/.test(w)), '上衣不足時給警告（需要 7 件只有 6 件）', r.json.warnings);
