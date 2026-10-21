@@ -150,7 +150,7 @@ export default function PlanDayScreen() {
       <TopBar eyebrow="PLAN" title={`${dotMd(date)} 星期${weekdayOf(date)}`} />
       <Screen bottomPad={mode === 'items' ? 24 : 48} contentStyle={{ paddingTop: 4 }}>
         {/* 當天摘要 */}
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10 }}>
             <Numeral size={40} style={{ color: date === today ? c.accent : c.ink }}>{String(d)}</Numeral>
             <Txt size={13} tone="mute">{weatherLine}</Txt>
@@ -234,9 +234,9 @@ export default function PlanDayScreen() {
                       opacity: pressed || busy ? 0.65 : 1,
                     })}
                   >
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <View style={{ width: 148, flexDirection: 'row', gap: 4 }}>
                       {thumbs.map((t, i) => (
-                        <View key={i} style={{ width: 40, height: 40, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <View key={i} style={{ width: 34, height: 34, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {t ? (
                             <Image source={{ uri: imageUrl(t) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
                           ) : (
@@ -280,7 +280,7 @@ export default function PlanDayScreen() {
                       accessibilityLabel={it.name}
                       style={{ width: '31.5%', gap: 4 }}
                     >
-                      <View style={{ borderWidth: on ? 2 : 1, borderColor: on ? c.ink : 'transparent' }}>
+                      <View style={{ borderWidth: 2, borderColor: on ? c.ink : 'transparent' }}>
                         <GarmentTile
                           path={it.images?.[0]?.thumbnailPath}
                           height={104}

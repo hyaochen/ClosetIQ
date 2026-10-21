@@ -15,8 +15,8 @@ import {
 import { Txt, Numeral, Button, Hairline } from '@/components/ui';
 import { CONDITION_SHORT, BoxTag } from './shared';
 
-const TILE = 46;
-const MAX_THUMBS = 4;
+const TILE = 44;
+const MAX_THUMBS = 3;
 
 /** 計畫：從今天起 7 天，可往後翻週 */
 export function PlanTab() {
@@ -30,6 +30,11 @@ export function PlanTab() {
   const { data: tripData } = useTrips();
   const [auto, setAuto] = useState<{ loading: boolean; result: AutoPlanResult | null }>({ loading: false, result: null });
   const [wearing, setWearing] = useState<string | null>(null);
+
+  const goWeek = (next: number) => {
+    setOffset(Math.max(0, next));
+    setAuto({ loading: false, result: null }); // 上一週的排程結果不要帶到別週
+  };
 
   const days = data?.days ?? [];
   const emptyCount = days.filter((d) => !d.plan).length;
@@ -66,7 +71,7 @@ export function PlanTab() {
       {/* 週切換 */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Pressable
-          onPress={() => setOffset((o) => Math.max(0, o - 1))}
+          onPress={() => goWeek(offset - 1)}
           disabled={offset === 0}
           accessibilityRole="button"
           accessibilityLabel="上一週"
@@ -77,7 +82,7 @@ export function PlanTab() {
         <View style={{ alignItems: 'center' }}>
           <Numeral size={22}>{rangeLabel}</Numeral>
           {offset > 0 ? (
-            <Pressable onPress={() => setOffset(0)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
+            <Pressable onPress={() => goWeek(0)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}>
               <Txt size={11} tone="mute" letterSpacing={1}>回到今天</Txt>
             </Pressable>
           ) : (
@@ -85,7 +90,7 @@ export function PlanTab() {
           )}
         </View>
         <Pressable
-          onPress={() => setOffset((o) => o + 1)}
+          onPress={() => goWeek(offset + 1)}
           accessibilityRole="button"
           accessibilityLabel="下一週"
           style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'flex-end' }}
@@ -200,17 +205,21 @@ function DayRow({
       </View>
 
       {day.plan ? (
-        <View style={{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          {shown.map((it) => (
+        <View style={{ flex: 1, flexDirection: 'row', gap: 4, alignItems: 'center', overflow: 'hidden' }}>
+          {shown.map((it, i) => (
             <View key={it.id} style={{ width: TILE, height: TILE, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
               {it.thumbnail ? (
                 <Image source={{ uri: imageUrl(it.thumbnail) }} style={{ width: '100%', height: '100%' }} contentFit="contain" accessibilityIgnoresInvertColors />
               ) : (
                 <Ionicons name="shirt-outline" size={20} color={c.mute} />
               )}
+              {more > 0 && i === shown.length - 1 ? (
+                <View style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: c.ink, paddingHorizontal: 4 }}>
+                  <Txt size={10} tone="onInk" style={{ lineHeight: 14 }}>{`+${more}`}</Txt>
+                </View>
+              ) : null}
             </View>
           ))}
-          {more > 0 ? <Txt size={11} tone="mute">{`+${more}`}</Txt> : null}
         </View>
       ) : (
         <View style={{ flex: 1, height: TILE, borderWidth: 1, borderStyle: 'dashed', borderColor: c.mute, alignItems: 'center', justifyContent: 'center' }}>

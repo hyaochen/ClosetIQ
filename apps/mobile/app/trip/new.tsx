@@ -101,7 +101,7 @@ export default function NewTripScreen() {
         </FieldRow>
         {place ? (
           <View style={{ paddingVertical: 8 }} accessibilityLiveRegion="polite">
-            <Txt size={12} tone="mute">{`找到：${place.name}（${place.lat}, ${place.lon}）${place.days > 0 ? ` . 有 ${place.days} 天預報` : ' . 暫時查不到預報'}`}</Txt>
+            <Txt size={12} tone="mute">{`找到「${destination.trim()}」（${place.lat}, ${place.lon}）${place.days > 0 ? ` . 有 ${place.days} 天預報` : ' . 暫時查不到預報'}`}</Txt>
           </View>
         ) : lookup === 'missing' ? (
           <View style={{ paddingVertical: 8 }} accessibilityLiveRegion="polite">
