@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuthStore } from '@/lib/auth-store';
+import { useColors } from '@/lib/theme';
+import { Txt, Serif, Numeral, Eyebrow, Button, TextField, Hairline } from '@/components/ui';
 
 export default function LoginScreen() {
+  const c = useColors();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,12 +15,10 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setError('');
-
     if (!email || !password) {
       setError('請輸入帳號和密碼');
       return;
     }
-
     setLoading(true);
     try {
       await login(email, password);
@@ -30,90 +31,64 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white dark:bg-gray-950"
-    >
-      <View className="flex-1 justify-center px-8">
-        {/* Header */}
-        <View className="mb-12 items-center">
-          <Text className="text-4xl font-bold text-primary-700 dark:text-primary-400 mb-2">
-            電子衣櫃
-          </Text>
-          <Text className="text-base text-gray-500 dark:text-gray-400">
-            智慧管理你的衣物
-          </Text>
-        </View>
-
-        {/* Error message */}
-        {error ? (
-          <View className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4">
-            <Text className="text-red-600 dark:text-red-400 text-sm text-center">{error}</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: c.paper }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
+        <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center', paddingHorizontal: 28, paddingVertical: 40 }}>
+          <Eyebrow>CLOSETIQ</Eyebrow>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
+            <Serif size={40} letterSpacing={1.6} style={{ lineHeight: 46 }} accessibilityRole="header">電子衣櫃</Serif>
+            <Numeral size={20} tone="mute">Editorial</Numeral>
           </View>
-        ) : null}
+          <Txt tone="mute" style={{ marginTop: 6 }}>智慧管理你的衣物</Txt>
+          <Hairline tone="ink" style={{ marginTop: 18, marginBottom: 8 }} />
 
-        {/* Form */}
-        <View className="gap-4">
-          <View>
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">帳號</Text>
-            <TextInput
-              className="border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-base bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50"
-              placeholder="輸入帳號"
-              placeholderTextColor="#9ca3af"
-              value={email}
-              onChangeText={(t) => { setEmail(t); setError(''); }}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
+          {error ? (
+            <View accessibilityRole="alert" style={{ borderWidth: 1, borderColor: c.accent, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 }}>
+              <Txt size={13} tone="accent">{error}</Txt>
+            </View>
+          ) : null}
+
+          <View style={{ marginTop: 10 }}>
+            <Txt size={12} tone="mute" letterSpacing={1.2}>帳號</Txt>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: c.ink }}>
+              <TextField
+                value={email}
+                onChangeText={(t) => { setEmail(t); setError(''); }}
+                placeholder="輸入帳號"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                accessibilityLabel="帳號"
+              />
+            </View>
           </View>
-
-          <View>
-            <Text className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密碼</Text>
-            <TextInput
-              className="border border-gray-300 dark:border-gray-700 rounded-xl px-4 py-3 text-base bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50"
-              placeholder="請輸入密碼"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setError(''); }}
-              secureTextEntry
-              editable={!loading}
-              onSubmitEditing={handleLogin}
-            />
+          <View style={{ marginTop: 14 }}>
+            <Txt size={12} tone="mute" letterSpacing={1.2}>密碼</Txt>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: c.ink }}>
+              <TextField
+                value={password}
+                onChangeText={(t) => { setPassword(t); setError(''); }}
+                placeholder="請輸入密碼"
+                secureTextEntry
+                editable={!loading}
+                onSubmitEditing={handleLogin}
+                accessibilityLabel="密碼"
+              />
+            </View>
           </View>
 
-          <Pressable
-            className={`rounded-xl py-4 items-center mt-4 flex-row justify-center ${
-              loading ? 'bg-primary-400' : 'bg-primary-600 active:bg-primary-700'
-            }`}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <ActivityIndicator color="white" size="small" />
-                <Text className="text-white text-base font-semibold ml-2">
-                  登入中...
-                </Text>
-              </>
-            ) : (
-              <Text className="text-white text-base font-semibold">
-                登入
-              </Text>
-            )}
-          </Pressable>
-        </View>
+          <Button label="登入" onPress={handleLogin} loading={loading} style={{ marginTop: 26 }} />
 
-        {/* Register link */}
-        <View className="flex-row justify-center mt-8">
-          <Text className="text-gray-500 dark:text-gray-400">還沒有帳號？</Text>
-          <Link href="/(auth)/register" asChild>
-            <Pressable>
-              <Text className="text-primary-600 dark:text-primary-400 font-semibold ml-1">註冊</Text>
-            </Pressable>
-          </Link>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, gap: 6 }}>
+            <Txt tone="mute">還沒有帳號？</Txt>
+            <Link href="/(auth)/register" asChild>
+              <Pressable accessibilityRole="link" style={{ minHeight: 44, justifyContent: 'center' }}>
+                <Txt bold style={{ textDecorationLine: 'underline' }}>註冊</Txt>
+              </Pressable>
+            </Link>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

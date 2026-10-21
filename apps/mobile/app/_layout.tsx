@@ -1,12 +1,15 @@
 import '../global.css';
+import '@/lib/fonts';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { useThemeStore } from '@/lib/theme-store';
+import { useColors } from '@/lib/theme';
 import { useColorScheme } from 'nativewind';
 import { AlertModal } from '@/components/AlertModal';
 
@@ -14,6 +17,7 @@ export default function RootLayout() {
   const loadSession = useAuthStore((s) => s.loadSession);
   const { isDark, loadTheme } = useThemeStore();
   const { setColorScheme } = useColorScheme();
+  const c = useColors();
 
   useEffect(() => {
     loadSession();
@@ -24,32 +28,43 @@ export default function RootLayout() {
     setColorScheme(isDark ? 'dark' : 'light');
   }, [isDark]);
 
+  // web：body 底色跟著主題，避免過度捲動露出白底
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.body.style.backgroundColor = c.paper;
+      document.documentElement.style.backgroundColor = c.paper;
+      document.documentElement.lang = 'zh-Hant';
+      document.title = '電子衣櫃';
+    }
+  }, [c.paper]);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <View className="flex-1 bg-white dark:bg-gray-950">
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            headerStyle: { backgroundColor: isDark ? '#030712' : '#ffffff' },
-            headerTintColor: isDark ? '#f9fafb' : '#1f2937',
-            headerTitleStyle: { fontWeight: '600' },
-            contentStyle: { backgroundColor: isDark ? '#030712' : '#f9fafb' },
-          }}
-        >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="item/[id]" options={{ headerShown: true, title: '衣物詳情' }} />
-          <Stack.Screen name="item/add" options={{ headerShown: true, title: '新增衣物' }} />
-          <Stack.Screen name="item/edit" options={{ headerShown: true, title: '編輯衣物' }} />
-          <Stack.Screen name="outfit/[id]" options={{ headerShown: true, title: '穿搭詳情' }} />
-          <Stack.Screen name="outfit/builder" options={{ headerShown: true, title: '穿搭組合' }} />
-          <Stack.Screen name="declutter" options={{ headerShown: true, title: '斷捨離助手' }} />
-          <Stack.Screen name="wear-history" options={{ headerShown: true, title: '穿著紀錄' }} />
-          <Stack.Screen name="analytics" options={{ headerShown: true, title: '統計分析' }} />
-        </Stack>
-      </View>
-      <AlertModal />
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <View style={{ flex: 1, backgroundColor: c.paper }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: c.paper },
+              animation: Platform.OS === 'web' ? 'none' : 'default',
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="item/[id]" />
+            <Stack.Screen name="item/add" />
+            <Stack.Screen name="item/edit" />
+            <Stack.Screen name="outfit/[id]" />
+            <Stack.Screen name="outfit/builder" />
+            <Stack.Screen name="declutter" />
+            <Stack.Screen name="analytics" />
+            <Stack.Screen name="laundry" />
+            <Stack.Screen name="storage" />
+          </Stack>
+        </View>
+        <AlertModal />
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

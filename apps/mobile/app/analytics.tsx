@@ -1,244 +1,147 @@
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { ClothingCategoryLabel } from '@closet/shared';
 import { api } from '@/lib/api';
+import { useColors } from '@/lib/theme';
+import { Screen, TopBar, Txt, Serif, Numeral, SectionHeader, StatRow, BarMeter, Hairline } from '@/components/ui';
 
 export default function AnalyticsScreen() {
+  const c = useColors();
   const { data, isLoading } = useQuery({
     queryKey: ['stats', 'advanced'],
     queryFn: () => api('/api/stats/advanced'),
   });
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <ActivityIndicator size="large" color="#4c6ef5" />
-      </View>
-    );
-  }
+  const wrap = (body: React.ReactNode) => (
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <TopBar eyebrow="ANALYTICS" title="統計分析" />
+      {body}
+    </View>
+  );
 
+  if (isLoading) {
+    return wrap(<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={c.ink} /></View>);
+  }
   if (!data) {
-    return (
-      <View className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <Text className="text-gray-400">無法載入統計資料</Text>
-      </View>
-    );
+    return wrap(<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Txt tone="mute">無法載入統計資料</Txt></View>);
   }
 
   const { brandBreakdown, spending, materialBreakdown, costPerWear } = data;
+  const maxMonth = Math.max(1, ...spending.monthlySpending.map((s: any) => s.amount));
 
-  return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-950" contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Spending Overview */}
-      <Section title="花費總覽" icon="wallet-outline">
-        <View className="flex-row gap-3 mb-3">
-          <MiniCard label="總花費" value={`$${spending.totalSpent.toLocaleString()}`} color="#4c6ef5" />
-          <MiniCard label="月均花費" value={`$${spending.avgMonthlySpending.toLocaleString()}`} color="#10b981" />
-        </View>
-        <View className="flex-row gap-3 mb-4">
-          <MiniCard
-            label="有價格記錄"
-            value={`${spending.itemsWithPriceCount}/${spending.totalItemCount}`}
-            color="#f59e0b"
-          />
-          <MiniCard
-            label="平均單價"
-            value={spending.itemsWithPriceCount > 0
-              ? `$${Math.round(spending.totalSpent / spending.itemsWithPriceCount).toLocaleString()}`
-              : '-'}
-            color="#8b5cf6"
-          />
-        </View>
-
-        {/* Category Spending */}
-        {spending.categorySpending.length > 0 && (
-          <View>
-            <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase">各分類花費</Text>
-            {spending.categorySpending.map((cat: any) => (
-              <BarRow
-                key={cat.category}
-                label={ClothingCategoryLabel[cat.category as keyof typeof ClothingCategoryLabel] || cat.category}
-                value={`$${cat.amount.toLocaleString()}`}
-                ratio={spending.totalSpent > 0 ? cat.amount / spending.totalSpent : 0}
-                color="#4c6ef5"
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Monthly Spending */}
-        {spending.monthlySpending.length > 0 && (
-          <View className="mt-4">
-            <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase">月度花費</Text>
-            {spending.monthlySpending.map((m: any) => {
-              const maxMonth = Math.max(...spending.monthlySpending.map((s: any) => s.amount));
-              return (
-                <BarRow
-                  key={m.month}
-                  label={m.month}
-                  value={`$${m.amount.toLocaleString()}`}
-                  ratio={maxMonth > 0 ? m.amount / maxMonth : 0}
-                  color="#10b981"
-                />
-              );
-            })}
-          </View>
-        )}
-      </Section>
-
-      {/* Brand Breakdown */}
-      <Section title="品牌分布" icon="pricetag-outline">
-        {brandBreakdown.length === 0 ? (
-          <Text className="text-gray-400 text-sm">尚無品牌資料</Text>
-        ) : (
-          brandBreakdown.map((b: any) => (
-            <View key={b.brand} className="flex-row items-center py-2.5 border-b border-gray-50 dark:border-gray-800">
-              <View className="flex-1">
-                <Text className="text-sm font-medium text-gray-900 dark:text-gray-50">{b.brand}</Text>
-                <Text className="text-xs text-gray-400 mt-0.5">
-                  {b.count} 件 · 穿 {b.totalWears} 次
-                  {b.totalSpent > 0 ? ` · $${b.totalSpent.toLocaleString()}` : ''}
-                </Text>
-              </View>
-              <View className="items-end">
-                {b.avgCostPerWear !== null ? (
-                  <View>
-                    <Text className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      ${b.avgCostPerWear}/次
-                    </Text>
-                    <Text className="text-[10px] text-gray-400 text-right">每次成本</Text>
-                  </View>
-                ) : (
-                  <Text className="text-xs text-gray-400">尚未穿著</Text>
-                )}
-              </View>
-            </View>
-          ))
-        )}
-      </Section>
-
-      {/* Material Breakdown */}
-      <Section title="材質分布" icon="layers-outline">
-        {materialBreakdown.length === 0 ? (
-          <Text className="text-gray-400 text-sm">尚無材質資料</Text>
-        ) : (
-          <>
-            {materialBreakdown.map((m: any) => {
-              const maxCount = materialBreakdown[0]?.count || 1;
-              return (
-                <BarRow
-                  key={m.material}
-                  label={m.material}
-                  value={`${m.count} 件`}
-                  ratio={m.count / maxCount}
-                  color="#8b5cf6"
-                />
-              );
-            })}
-          </>
-        )}
-      </Section>
-
-      {/* Cost Per Wear Rankings */}
-      <Section title="每次穿著成本排行" icon="trending-down-outline">
-        {costPerWear.bestValue.length === 0 && costPerWear.worstValue.length === 0 ? (
-          <Text className="text-gray-400 text-sm">需要有價格及穿著紀錄才能計算</Text>
-        ) : (
-          <>
-            {costPerWear.bestValue.length > 0 && (
-              <View className="mb-4">
-                <View className="flex-row items-center gap-1 mb-2">
-                  <Ionicons name="wallet-outline" size={14} color="#16a34a" />
-                  <Text className="text-xs font-semibold text-green-600 dark:text-green-400">
-                    最划算（每次成本最低）
-                  </Text>
-                </View>
-                {costPerWear.bestValue.map((item: any) => (
-                  <CostRow key={item.id} item={item} highlight="good" />
-                ))}
-              </View>
-            )}
-            {costPerWear.worstValue.length > 0 && (
-              <View>
-                <View className="flex-row items-center gap-1 mb-2">
-                  <Ionicons name="flame-outline" size={14} color="#ef4444" />
-                  <Text className="text-xs font-semibold text-red-500 dark:text-red-400">
-                    最浪費（每次成本最高）
-                  </Text>
-                </View>
-                {costPerWear.worstValue.map((item: any) => (
-                  <CostRow key={item.id} item={item} highlight="bad" />
-                ))}
-              </View>
-            )}
-          </>
-        )}
-      </Section>
-    </ScrollView>
-  );
-}
-
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
-  return (
-    <View className="mx-5 mt-4 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800">
-      <View className="flex-row items-center gap-2 mb-3">
-        <Ionicons name={icon as any} size={18} color="#6b7280" />
-        <Text className="text-base font-semibold text-gray-900 dark:text-gray-50">{title}</Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
-function MiniCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 items-center">
-      <Text className="text-lg font-bold" style={{ color }}>{value}</Text>
-      <Text className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{label}</Text>
-    </View>
-  );
-}
-
-function BarRow({ label, value, ratio, color }: { label: string; value: string; ratio: number; color: string }) {
-  return (
-    <View className="mb-2">
-      <View className="flex-row justify-between mb-1">
-        <Text className="text-sm text-gray-700 dark:text-gray-300">{label}</Text>
-        <Text className="text-sm font-medium text-gray-900 dark:text-gray-50">{value}</Text>
-      </View>
-      <View className="bg-gray-100 dark:bg-gray-800 rounded-full h-2">
-        <View
-          className="rounded-full h-2"
-          style={{ width: `${Math.max(ratio * 100, 2)}%`, backgroundColor: color }}
+  return wrap(
+    <Screen>
+      <Serif size={26} accessibilityRole="header">花費總覽</Serif>
+      <View style={{ marginTop: 12 }}>
+        <StatRow
+          stats={[
+            { value: `$${spending.totalSpent.toLocaleString()}`, label: '總花費' },
+            { value: `$${spending.avgMonthlySpending.toLocaleString()}`, label: '月均花費' },
+            { value: spending.itemsWithPriceCount > 0 ? `$${Math.round(spending.totalSpent / spending.itemsWithPriceCount).toLocaleString()}` : '-', label: '平均單價' },
+          ]}
         />
       </View>
+      <Txt size={12} tone="mute" style={{ marginTop: 6 }}>{`有價格記錄 ${spending.itemsWithPriceCount} / ${spending.totalItemCount} 件`}</Txt>
+
+      {spending.categorySpending.length > 0 ? (
+        <>
+          <SectionHeader title="各分類花費" style={{ marginTop: 22 }} />
+          {spending.categorySpending.map((cat: any) => (
+            <BarRow
+              key={cat.category}
+              label={ClothingCategoryLabel[cat.category as keyof typeof ClothingCategoryLabel] || cat.category}
+              value={`$${cat.amount.toLocaleString()}`}
+              ratio={spending.totalSpent > 0 ? cat.amount / spending.totalSpent : 0}
+            />
+          ))}
+        </>
+      ) : null}
+
+      {spending.monthlySpending.length > 0 ? (
+        <>
+          <SectionHeader title="月度花費" style={{ marginTop: 22 }} />
+          {spending.monthlySpending.map((m: any) => (
+            <BarRow key={m.month} label={m.month} value={`$${m.amount.toLocaleString()}`} ratio={m.amount / maxMonth} />
+          ))}
+        </>
+      ) : null}
+
+      <SectionHeader title="品牌分布" style={{ marginTop: 22 }} />
+      {brandBreakdown.length === 0 ? (
+        <Txt tone="mute" style={{ paddingVertical: 12 }}>尚無品牌資料</Txt>
+      ) : (
+        brandBreakdown.map((b: any) => (
+          <View key={b.brand} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 54, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.line, gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <Serif size={15} medium numberOfLines={1}>{b.brand}</Serif>
+              <Txt size={12} tone="mute">{`${b.count} 件 · 穿 ${b.totalWears} 次${b.totalSpent > 0 ? ` · $${b.totalSpent.toLocaleString()}` : ''}`}</Txt>
+            </View>
+            {b.avgCostPerWear !== null ? (
+              <View style={{ alignItems: 'flex-end' }}>
+                <Numeral size={20}>{`$${b.avgCostPerWear}`}</Numeral>
+                <Txt size={10} tone="mute" style={{ lineHeight: 14 }}>每次成本</Txt>
+              </View>
+            ) : (
+              <Txt size={12} tone="mute">尚未穿著</Txt>
+            )}
+          </View>
+        ))
+      )}
+
+      <SectionHeader title="材質分布" style={{ marginTop: 22 }} />
+      {materialBreakdown.length === 0 ? (
+        <Txt tone="mute" style={{ paddingVertical: 12 }}>尚無材質資料</Txt>
+      ) : (
+        materialBreakdown.map((m: any) => (
+          <BarRow key={m.material} label={m.material} value={`${m.count} 件`} ratio={m.count / (materialBreakdown[0]?.count || 1)} />
+        ))
+      )}
+
+      <SectionHeader title="每次穿著成本排行" style={{ marginTop: 22 }} />
+      {costPerWear.bestValue.length === 0 && costPerWear.worstValue.length === 0 ? (
+        <Txt tone="mute" style={{ paddingVertical: 12 }}>需要有價格及穿著紀錄才能計算</Txt>
+      ) : (
+        <>
+          {costPerWear.bestValue.length > 0 ? (
+            <>
+              <Txt size={12} tone="mute" letterSpacing={1.3} style={{ marginTop: 12 }}>最划算（每次成本最低）</Txt>
+              {costPerWear.bestValue.map((item: any) => <CostRow key={item.id} item={item} />)}
+            </>
+          ) : null}
+          {costPerWear.worstValue.length > 0 ? (
+            <>
+              <Txt size={12} tone="accent" letterSpacing={1.3} style={{ marginTop: 16 }}>最浪費（每次成本最高）</Txt>
+              {costPerWear.worstValue.map((item: any) => <CostRow key={item.id} item={item} bad />)}
+            </>
+          ) : null}
+        </>
+      )}
+      <Hairline />
+    </Screen>
+  );
+}
+
+function BarRow({ label, value, ratio }: { label: string; value: string; ratio: number }) {
+  const c = useColors();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 42, borderBottomWidth: 1, borderBottomColor: c.line }}>
+      <Txt size={13} numberOfLines={1} style={{ width: 96 }}>{label}</Txt>
+      <BarMeter ratio={Math.max(ratio, 0.02)} />
+      <Txt size={13} style={{ minWidth: 64, textAlign: 'right' }}>{value}</Txt>
     </View>
   );
 }
 
-function CostRow({ item, highlight }: { item: any; highlight: 'good' | 'bad' }) {
+function CostRow({ item, bad }: { item: any; bad?: boolean }) {
+  const c = useColors();
   return (
-    <View className="flex-row items-center py-2 border-b border-gray-50 dark:border-gray-800">
-      <View className="flex-1">
-        <Text className="text-sm text-gray-900 dark:text-gray-50" numberOfLines={1}>{item.name}</Text>
-        <Text className="text-xs text-gray-400">
-          {item.brand ? `${item.brand} · ` : ''}${item.purchasePrice} · 穿 {item.wearCount} 次
-        </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 50, borderBottomWidth: 1, borderBottomColor: c.line, gap: 12 }}>
+      <View style={{ flex: 1 }}>
+        <Txt size={14} numberOfLines={1}>{item.name}</Txt>
+        <Txt size={11} tone="mute" style={{ lineHeight: 16 }}>{`${item.brand ? item.brand + ' · ' : ''}$${item.purchasePrice} · 穿 ${item.wearCount} 次`}</Txt>
       </View>
-      <View className={`px-2.5 py-1 rounded-full ${
-        highlight === 'good'
-          ? 'bg-green-50 dark:bg-green-950'
-          : 'bg-red-50 dark:bg-red-950'
-      }`}>
-        <Text className={`text-sm font-semibold ${
-          highlight === 'good'
-            ? 'text-green-700 dark:text-green-400'
-            : 'text-red-600 dark:text-red-400'
-        }`}>
-          ${item.costPerWear}/次
-        </Text>
-      </View>
+      <Numeral size={20} tone={bad ? 'accent' : 'ink'}>{`$${item.costPerWear}`}</Numeral>
+      <Txt size={11} tone="mute">／次</Txt>
     </View>
   );
 }

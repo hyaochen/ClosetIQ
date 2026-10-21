@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
+import { View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import {
   ClothingCategoryLabel,
@@ -12,41 +12,59 @@ import {
   OccasionLabel,
   ConditionLabel,
   costPerWear,
+  type LaundryStatus,
 } from '@closet/shared';
 import { api } from '@/lib/api';
+import { imageUrl } from '@/lib/images';
 import { queryClient } from '@/lib/query-client';
+import { useColors } from '@/lib/theme';
+import { logWear, setLaundryStatus, localDateString, logDateKey, useEffectiveSeason, itemIsOffSeason } from '@/lib/queries';
 import { showAlert, showConfirm } from '@/lib/alert';
+import {
+  TopBar, IconButton, Txt, Serif, Numeral, Eyebrow, Segmented, StatRow, SpecRow, Button, StatusTag, SectionHeader,
+} from '@/components/ui';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
-const screenWidth = Dimensions.get('window').width;
+function daysAgo(dateKey: string): number {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const then = new Date(y, m - 1, d).getTime();
+  const t = new Date();
+  const today = new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+  return Math.max(0, Math.round((today - then) / 86400000));
+}
 
 export default function ItemDetailScreen() {
+  const c = useColors();
+  const { width } = useWindowDimensions();
+  const colW = Math.min(width, 560);
+  const season = useEffectiveSeason();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [wearLoading, setWearLoading] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
 
   const { data, isLoading } = useQuery({
     queryKey: ['items', id],
     queryFn: () => api(`/api/items/${id}`),
     enabled: !!id,
   });
-
   const item = data?.item;
+
+  const pickLaundry = async (status: LaundryStatus) => {
+    if (!id) return;
+    try {
+      await setLaundryStatus([id], status);
+      queryClient.invalidateQueries({ queryKey: ['items', id] });
+    } catch (err: any) {
+      showAlert('更新失敗', err.message);
+    }
+  };
 
   const handleWearToday = async () => {
     if (!id) return;
     setWearLoading(true);
     try {
-      await api('/api/wear-logs', {
-        method: 'POST',
-        body: JSON.stringify({
-          itemIds: [id],
-          date: new Date().toISOString().split('T')[0],
-        }),
-      });
+      await logWear({ itemIds: [id] });
       queryClient.invalidateQueries({ queryKey: ['items', id] });
-      queryClient.invalidateQueries({ queryKey: ['wear-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      showAlert('已記錄', '今天的穿著已記錄！');
+      showAlert('已記錄', '今天的穿著已記錄。上衣、下身、洋裝與內衣褲會自動轉為待洗。');
     } catch (err: any) {
       showAlert('記錄失敗', err.message);
     } finally {
@@ -59,157 +77,152 @@ export default function ItemDetailScreen() {
     if (confirmed) {
       await api(`/api/items/${id}`, { method: 'DELETE' });
       queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['laundry'] });
       router.back();
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !item) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#4c6ef5" />
-      </View>
-    );
-  }
-
-  if (!item) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <Text className="text-gray-400">找不到此衣物</Text>
+      <View style={{ flex: 1, backgroundColor: c.paper }}>
+        <TopBar eyebrow="ITEM" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          {isLoading ? <ActivityIndicator color={c.ink} /> : <Txt tone="mute">找不到此衣物</Txt>}
+        </View>
       </View>
     );
   }
 
   const wearCount = item._count?.wearLogItems ?? 0;
   const cpw = costPerWear(item.purchasePrice ? Number(item.purchasePrice) : null, wearCount);
+  const lastLog = item.wearLogItems?.[0]?.wearLog;
+  const lastAgo = lastLog ? daysAgo(logDateKey(lastLog.date)) : null;
+  const recentWears = (item.wearLogItems ?? []).map((w: any) => w.wearLog);
+  const off = itemIsOffSeason(item, season);
+  const images: any[] = item.images ?? [];
+  const catLabel = ClothingCategoryLabel[item.category as keyof typeof ClothingCategoryLabel];
 
-  // Recent wear history
-  const recentWears = item.wearLogItems?.map((wli: any) => wli.wearLog) ?? [];
+  const metaLine = [
+    item.brand,
+    item.size,
+    item.purchaseDate ? `${new Date(item.purchaseDate).getFullYear()}.${String(new Date(item.purchaseDate).getMonth() + 1).padStart(2, '0')} 購入` : null,
+    item.purchasePrice ? `NT$${Number(item.purchasePrice).toLocaleString()}` : null,
+  ].filter(Boolean).join(' · ');
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-950">
-      {/* Images */}
-      {item.images?.length > 0 && (
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-          {item.images.map((img: any) => (
-            <Image
-              key={img.id}
-              source={{ uri: `${API_BASE}/api/images/file/${img.displayPath}` }}
-              style={{ width: screenWidth, height: screenWidth }}
-              contentFit="cover"
-            />
-          ))}
-        </ScrollView>
-      )}
+    <View style={{ flex: 1, backgroundColor: c.paper }}>
+      <TopBar
+        eyebrow={`ITEM No. ${String(item.id).slice(0, 4).toUpperCase()}`}
+        backLabel="返回"
+        right={<IconButton name="create-outline" label="編輯" size={20} onPress={() => router.push(`/item/edit?id=${id}`)} />}
+      />
 
-      <View className="px-5 py-4 gap-4">
-        {/* Name & Category */}
-        <View>
-          <Text className="text-2xl font-bold text-gray-900 dark:text-gray-50">{item.name}</Text>
-          <Text className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {ClothingCategoryLabel[item.category as keyof typeof ClothingCategoryLabel]}
-            {item.subcategory && ` · ${item.subcategory}`}
-          </Text>
-        </View>
-
-        {/* Quick Action: Wear Today */}
-        <Pressable
-          className="bg-primary-600 rounded-2xl py-4 flex-row items-center justify-center gap-2 active:bg-primary-700"
-          onPress={handleWearToday}
-          disabled={wearLoading}
-        >
-          <Ionicons name="checkmark-circle-outline" size={22} color="white" />
-          <Text className="text-white text-base font-semibold">
-            {wearLoading ? '記錄中...' : '記錄今天穿了'}
-          </Text>
-        </Pressable>
-
-        {/* Stats */}
-        <View className="flex-row gap-3">
-          <View className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 items-center border border-gray-100 dark:border-gray-800">
-            <Text className="text-xl font-bold text-primary-600">{wearCount}</Text>
-            <Text className="text-xs text-gray-500 dark:text-gray-400">穿著次數</Text>
-          </View>
-          {cpw !== null && (
-            <View className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 items-center border border-gray-100 dark:border-gray-800">
-              <Text className="text-xl font-bold text-green-600">${cpw}</Text>
-              <Text className="text-xs text-gray-500 dark:text-gray-400">每次成本</Text>
-            </View>
-          )}
-          {item.purchasePrice && (
-            <View className="flex-1 bg-white dark:bg-gray-900 rounded-xl p-3 items-center border border-gray-100 dark:border-gray-800">
-              <Text className="text-xl font-bold text-gray-700 dark:text-gray-300">${Number(item.purchasePrice)}</Text>
-              <Text className="text-xs text-gray-500 dark:text-gray-400">購買價格</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Details */}
-        <View className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-800 gap-2">
-          <DetailRow label="色系" value={ColorFamilyLabel[item.colorFamily as keyof typeof ColorFamilyLabel]} />
-          <DetailRow label="圖案" value={PatternLabel[item.pattern as keyof typeof PatternLabel]} />
-          <DetailRow label="季節" value={item.seasons.map((s: string) => SeasonLabel[s as keyof typeof SeasonLabel]).join('、')} />
-          <DetailRow label="場合" value={item.occasions.map((o: string) => OccasionLabel[o as keyof typeof OccasionLabel]).join('、')} />
-          <DetailRow label="狀態" value={ConditionLabel[item.condition as keyof typeof ConditionLabel]} />
-          {item.brand && <DetailRow label="品牌" value={item.brand} />}
-          {item.material && <DetailRow label="材質" value={item.material} />}
-          {item.size && <DetailRow label="尺寸" value={item.size} />}
-          {item.notes && <DetailRow label="備註" value={item.notes} />}
-        </View>
-
-        {/* Recent Wear History */}
-        {recentWears.length > 0 && (
-          <View className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-800">
-            <Text className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">最近穿著紀錄</Text>
-            {recentWears.map((log: any, idx: number) => (
-              <View key={idx} className="flex-row justify-between py-1.5 border-b border-gray-50 dark:border-gray-800 last:border-b-0">
-                <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  {new Date(log.date).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </Text>
-                {log.occasion && (
-                  <Text className="text-sm text-gray-400">
-                    {OccasionLabel[log.occasion as keyof typeof OccasionLabel] || log.occasion}
-                  </Text>
-                )}
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+        <View style={{ width: '100%', maxWidth: 560, alignSelf: 'center' }}>
+          {/* 圖片 */}
+          <View style={{ height: 292, backgroundColor: c.card }}>
+            {images.length > 0 ? (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={(e) => setImgIndex(Math.round(e.nativeEvent.contentOffset.x / colW))}
+                scrollEventThrottle={50}
+              >
+                {images.map((img: any) => (
+                  <View key={img.id} style={{ width: colW, height: 292, alignItems: 'center', justifyContent: 'center' }}>
+                    <Image
+                      source={{ uri: imageUrl(img.displayPath) }}
+                      style={{ width: '100%', height: '100%', opacity: off ? 0.8 : 1 }}
+                      contentFit="contain"
+                      accessibilityIgnoresInvertColors
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="shirt-outline" size={64} color={c.mute} />
               </View>
-            ))}
+            )}
+            {images.length > 1 ? (
+              <View style={{ position: 'absolute', right: 14, bottom: 10 }}>
+                <Numeral size={16}>{`${imgIndex + 1} / ${images.length}`}</Numeral>
+              </View>
+            ) : null}
+            {off ? (
+              <View style={{ position: 'absolute', left: 12, top: 12 }}>
+                <StatusTag kind="OFF_SEASON" />
+              </View>
+            ) : null}
           </View>
-        )}
 
-        {/* Edit */}
-        <Pressable
-          className="bg-white dark:bg-gray-900 border border-primary-200 dark:border-primary-800 rounded-xl py-3 flex-row items-center justify-center gap-2 active:bg-primary-50 dark:active:bg-primary-950"
-          onPress={() => router.push(`/item/edit?id=${id}`)}
-        >
-          <Ionicons name="create-outline" size={18} color="#4c6ef5" />
-          <Text className="text-primary-600 font-semibold">編輯衣物資料</Text>
-        </Pressable>
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <Eyebrow>{`${catLabel}${item.subcategory && item.subcategory !== catLabel ? ` · ${item.subcategory}` : ''} · ${item.category}`}</Eyebrow>
+            <Serif size={26} letterSpacing={0.8} style={{ marginTop: 4, lineHeight: 33 }} accessibilityRole="header">{item.name}</Serif>
+            {metaLine ? <Txt size={12} tone="mute" style={{ marginTop: 2 }}>{metaLine}</Txt> : null}
 
-        {/* Similar Items */}
-        <Pressable
-          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl py-3 flex-row items-center justify-center gap-2 active:bg-gray-50 dark:active:bg-gray-800"
-          onPress={() => {/* TODO: navigate to similar */}}
-        >
-          <Ionicons name="copy-outline" size={18} color="#6b7280" />
-          <Text className="text-gray-600 dark:text-gray-400 font-medium">查看相似衣物</Text>
-        </Pressable>
+            {/* 洗衣狀態 */}
+            <View style={{ marginTop: 14 }}>
+              <Segmented<LaundryStatus>
+                label="洗衣狀態"
+                height={44}
+                value={(item.laundryStatus as LaundryStatus) ?? 'CLEAN'}
+                onChange={pickLaundry}
+                options={[
+                  { value: 'CLEAN', label: '乾淨' },
+                  { value: 'DIRTY', label: '待洗', activeBg: c.accent, activeFg: c.onAccent },
+                  { value: 'CLEANING', label: '送洗中', activeBg: c.olive, activeFg: c.onOlive },
+                ]}
+              />
+            </View>
 
-        {/* Delete */}
-        <Pressable
-          className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl py-3 items-center active:bg-red-100 dark:active:bg-red-900"
-          onPress={handleDelete}
-        >
-          <Text className="text-red-500 font-semibold">斷捨離</Text>
-        </Pressable>
+            <View style={{ marginTop: 14 }}>
+              <StatRow
+                stats={[
+                  { value: wearCount, label: '次穿著' },
+                  { value: cpw !== null ? Math.round(cpw) : '-', label: 'NT$／次' },
+                  { value: lastAgo !== null ? lastAgo : '-', label: lastAgo === 0 ? '今天穿過' : '天前穿過' },
+                ]}
+              />
+            </View>
+
+            <View style={{ marginTop: 4 }}>
+              {item.material ? <SpecRow label="材質" value={item.material} /> : null}
+              <SpecRow label="季節" value={item.seasons.map((s: string) => SeasonLabel[s as keyof typeof SeasonLabel]).join(' · ') || '不限'} />
+              <SpecRow label="場合" value={item.occasions.map((o: string) => OccasionLabel[o as keyof typeof OccasionLabel]).join(' · ') || '不限'} />
+              <SpecRow label="色系" value={`${ColorFamilyLabel[item.colorFamily as keyof typeof ColorFamilyLabel]} · ${PatternLabel[item.pattern as keyof typeof PatternLabel]}`} />
+              <SpecRow label="狀況" value={ConditionLabel[item.condition as keyof typeof ConditionLabel]} />
+              <SpecRow label="收納" value={item.storageLocation?.name ?? '未指定'} last={!item.notes} />
+              {item.notes ? <SpecRow label="備註" value={item.notes} last /> : null}
+            </View>
+
+            {recentWears.length > 0 ? (
+              <View style={{ marginTop: 20 }}>
+                <SectionHeader title="最近穿著" />
+                {recentWears.map((log: any, i: number) => (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', minHeight: 38, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: c.line }}>
+                    <Txt size={13} tone="mute">{logDateKey(log.date).replace(/-/g, '.')}</Txt>
+                    {log.occasion ? <Txt size={13}>{OccasionLabel[log.occasion as keyof typeof OccasionLabel] || log.occasion}</Txt> : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <Pressable onPress={handleDelete} accessibilityRole="button" style={{ minHeight: 48, justifyContent: 'center', marginTop: 12 }}>
+              <Txt size={13} tone="accent" style={{ textDecorationLine: 'underline' }}>移至斷捨離</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* 固定底欄 */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.ink }}>
+        <View style={{ width: '100%', maxWidth: 560, alignSelf: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 22 }}>
+          <Button label="放進穿搭" variant="outline" style={{ flex: 1 }} onPress={() => router.push('/outfit/builder')} />
+          <Button label="今天穿它" style={{ flex: 1.4 }} onPress={handleWearToday} loading={wearLoading} />
+        </View>
       </View>
-    </ScrollView>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row justify-between py-1">
-      <Text className="text-sm text-gray-500 dark:text-gray-400">{label}</Text>
-      <Text className="text-sm text-gray-900 dark:text-gray-50 font-medium">{value}</Text>
     </View>
   );
 }

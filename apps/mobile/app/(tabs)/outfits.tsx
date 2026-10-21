@@ -1,106 +1,89 @@
-import { View, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { View, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { api } from '@/lib/api';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { OccasionLabel } from '@closet/shared';
+import { api } from '@/lib/api';
+import { imageUrl } from '@/lib/images';
+import { useColors } from '@/lib/theme';
+import { Screen, PageHeader, Hairline, Txt, Serif, Button } from '@/components/ui';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+const GAP = 12;
 
 export default function OutfitsScreen() {
+  const c = useColors();
+  const { width } = useWindowDimensions();
+  const cols = width >= 700 ? 3 : 2;
+  const maxWidth = cols === 2 ? 560 : 900;
+  const cardWidth = Math.floor((Math.min(width, maxWidth) - 40 - GAP * (cols - 1)) / cols);
+
   const { data, isLoading } = useQuery({
     queryKey: ['outfits'],
     queryFn: () => api('/api/outfits'),
   });
-
-  const outfits = data?.outfits ?? [];
+  const outfits: any[] = data?.outfits ?? [];
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-gray-950">
+    <Screen maxWidth={maxWidth}>
+      <PageHeader
+        title="穿搭"
+        sub={`${outfits.length} looks`}
+        right={<Button label="新穿搭" icon="add" height={44} onPress={() => router.push('/outfit/builder')} />}
+      />
+      <Hairline tone="ink" style={{ marginTop: 8, marginBottom: 16 }} />
+
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#4c6ef5" />
-        </View>
+        <ActivityIndicator color={c.ink} style={{ marginTop: 48 }} />
       ) : outfits.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Ionicons name="layers-outline" size={64} color="#d1d5db" />
-          <Text className="text-gray-400 text-lg mt-4 text-center">
-            還沒有建立穿搭組合
-          </Text>
-          <Pressable
-            className="bg-primary-600 rounded-xl px-6 py-3 mt-6 active:bg-primary-700"
-            onPress={() => router.push('/outfit/builder')}
-          >
-            <Text className="text-white font-semibold">建立第一套穿搭</Text>
-          </Pressable>
+        <View style={{ alignItems: 'center', paddingVertical: 56, gap: 14 }}>
+          <Ionicons name="layers-outline" size={44} color={c.mute} />
+          <Txt tone="mute">還沒有建立穿搭組合</Txt>
+          <Button label="建立第一套穿搭" onPress={() => router.push('/outfit/builder')} />
         </View>
       ) : (
-        <FlatList
-          data={outfits}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable
-              className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-              onPress={() => router.push(`/outfit/${item.id}`)}
-            >
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                  {item.name || '未命名穿搭'}
-                </Text>
-                <Text className="text-xs text-gray-400">
-                  穿過 {item._count?.wearLogs ?? 0} 次
-                </Text>
-              </View>
-              <ScrollableItemThumbnails items={item.items} />
-              {item.rating && (
-                <View className="flex-row mt-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name={star <= item.rating! ? 'star' : 'star-outline'}
-                      size={16}
-                      color={star <= item.rating! ? '#f59e0b' : '#d1d5db'}
-                    />
-                  ))}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, rowGap: 20 }}>
+          {outfits.map((o) => {
+            const thumbs = (o.items ?? []).map((oi: any) => oi.clothingItem?.images?.[0]?.thumbnailPath).slice(0, 4);
+            const count = o.items?.length ?? 0;
+            const wears = o._count?.wearLogs ?? 0;
+            const occ = (o.occasions ?? []).map((k: string) => OccasionLabel[k as keyof typeof OccasionLabel]).filter(Boolean).slice(0, 2).join(' / ');
+            return (
+              <Pressable
+                key={o.id}
+                onPress={() => router.push(`/outfit/${o.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={o.name || '未命名穿搭'}
+                style={({ pressed }) => ({ width: cardWidth, gap: 6, opacity: pressed ? 0.75 : 1 })}
+              >
+                <View style={{ height: 176, backgroundColor: c.card, flexDirection: 'row', flexWrap: 'wrap', padding: 6 }}>
+                  {thumbs.length === 0 ? (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="shirt-outline" size={32} color={c.mute} />
+                    </View>
+                  ) : (
+                    thumbs.map((t: string | undefined, i: number) => (
+                      <View key={i} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 3 }}>
+                        {t ? (
+                          <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
+                        ) : (
+                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="shirt-outline" size={20} color={c.mute} />
+                          </View>
+                        )}
+                      </View>
+                    ))
+                  )}
                 </View>
-              )}
-            </Pressable>
-          )}
-        />
+                <Serif size={14} medium numberOfLines={1}>{o.name || '未命名穿搭'}</Serif>
+                <Txt size={11} tone="mute" numberOfLines={1} style={{ marginTop: -4, lineHeight: 16 }}>
+                  {`${count} 件 · 穿過 ${wears} 次${occ ? ' · ' + occ : ''}`}
+                </Txt>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
-
-      <Pressable
-        className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-primary-600 items-center justify-center shadow-lg active:bg-primary-700"
-        onPress={() => router.push('/outfit/builder')}
-      >
-        <Ionicons name="add" size={28} color="white" />
-      </Pressable>
-    </View>
-  );
-}
-
-function ScrollableItemThumbnails({ items }: { items: any[] }) {
-  return (
-    <View className="flex-row gap-2">
-      {items.map((outfitItem) => {
-        const thumb = outfitItem.clothingItem?.images?.[0]?.thumbnailPath;
-        return (
-          <View key={outfitItem.id} className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-            {thumb ? (
-              <Image
-                source={{ uri: `${API_BASE}/api/images/file/${thumb}` }}
-                className="w-full h-full"
-                contentFit="cover"
-              />
-            ) : (
-              <View className="w-full h-full items-center justify-center">
-                <Ionicons name="shirt-outline" size={20} color="#9ca3af" />
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
+    </Screen>
   );
 }

@@ -1,92 +1,302 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '@/lib/auth-store';
+import * as Location from 'expo-location';
+import { useQuery } from '@tanstack/react-query';
+import { OccasionLabel, WeatherConditionLabel, SeasonLabel } from '@closet/shared';
+import { api } from '@/lib/api';
+import { useColors } from '@/lib/theme';
+import { useLaundry, useMe, logWear, localDateString, logDateKey } from '@/lib/queries';
+import { showAlert } from '@/lib/alert';
+import {
+  Screen, Txt, Serif, Numeral, Eyebrow, Hairline, SectionHeader, Button, Chip, GarmentTile,
+} from '@/components/ui';
 
-export default function HomeScreen() {
-  const user = useAuthStore((s) => s.user);
+const WEEK_EN = ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.'];
+const WEEK_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+
+type SuggestionItem = { id: string; name: string; category: string; thumbnail: string | null };
+type Suggestion = { items: SuggestionItem[]; score: number };
+
+function pad(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+/** 本週（週一到週日）的日期字串 */
+function currentWeek(now: Date) {
+  const dow = (now.getDay() + 6) % 7; // 週一 = 0
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + i);
+    days.push(d);
+  }
+  return days;
+}
+
+export default function TodayScreen() {
+  const c = useColors();
+  const now = useMemo(() => new Date(), []);
+  const todayKey = localDateString(now);
+  const { data: me } = useMe();
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [weatherAsked, setWeatherAsked] = useState(false);
+  const [occasion, setOccasion] = useState<string | undefined>(undefined);
+  const [index, setIndex] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [wornSig, setWornSig] = useState<string | null>(null);
+
+  // 已授權才自動取得位置；未授權時由使用者按連結再要求，不在載入時跳權限視窗
+  useEffect(() => {
+    (async () => {
+      try {
+        const p = await Location.getForegroundPermissionsAsync();
+        if (p.granted) {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+          setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        }
+      } catch {
+        /* 沒有定位就不顯示天氣 */
+      }
+    })();
+  }, []);
+
+  const askWeather = async () => {
+    setWeatherAsked(true);
+    try {
+      const p = await Location.requestForegroundPermissionsAsync();
+      if (p.granted) {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const { data, isLoading } = useQuery<{ suggestions: Suggestion[]; weather: { temp: number; condition: string } | null }>({
+    queryKey: ['suggestions', coords?.lat ?? null, coords?.lon ?? null, occasion ?? null],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (occasion) params.set('occasion', occasion);
+      if (coords) {
+        params.set('lat', String(coords.lat));
+        params.set('lon', String(coords.lon));
+      }
+      return api(`/api/suggestions/outfit?${params.toString()}`);
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const suggestions = data?.suggestions ?? [];
+  const weather = data?.weather ?? null;
+  const total = suggestions.length;
+  const current = suggestions[total ? index % total : 0];
+  const sig = current ? current.items.map((i) => i.id).sort().join(',') : null;
+  const worn = !!sig && wornSig === sig;
+
+  // 本週紀錄
+  const week = useMemo(() => currentWeek(now), [now]);
+  const from = localDateString(week[0]);
+  const to = localDateString(week[6]);
+  const { data: weekLogs } = useQuery({
+    queryKey: ['wear-logs', 'week', from, to],
+    queryFn: () => api(`/api/wear-logs?from=${from}&to=${to}&limit=100`),
+  });
+  const loggedDays = useMemo(() => {
+    const s = new Set<string>();
+    for (const l of weekLogs?.logs ?? []) s.add(logDateKey(l.date));
+    return s;
+  }, [weekLogs]);
+
+  const { data: laundry } = useLaundry();
+  const dirty = (laundry?.items ?? []).filter((i) => i.laundryStatus === 'DIRTY').length;
+  const cleaning = (laundry?.items ?? []).filter((i) => i.laundryStatus === 'CLEANING').length;
+
+  const wearThis = async () => {
+    if (!current || saving) return;
+    setSaving(true);
+    try {
+      await logWear({
+        itemIds: current.items.map((i) => i.id),
+        occasion,
+        weatherTemp: weather?.temp,
+      });
+      setWornSig(sig);
+    } catch (err: any) {
+      showAlert('記錄失敗', err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dateLabel = `${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${WEEK_EN[now.getDay()]}`;
+  const weatherText = weather
+    ? `${weather.temp}° ${WeatherConditionLabel[weather.condition as keyof typeof WeatherConditionLabel] ?? ''}`
+    : null;
+  const names = current ? current.items.map((i) => i.name).join(' · ') : '';
+  const advice =
+    weather && weather.temp < 15
+      ? `氣溫 ${weather.temp}°，已幫你搭上外套`
+      : weather && weather.temp >= 28
+        ? `氣溫 ${weather.temp}°，挑了透氣的季節衣物`
+        : null;
+
+  // 拼貼：依件數決定欄列
+  const n = current?.items.length ?? 0;
+  const cols = n <= 2 ? Math.max(n, 1) : n <= 4 ? 2 : 3;
+  const rows = Math.max(1, Math.ceil(n / cols));
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <View className="px-5 pt-6 pb-4">
-        <Text className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-          嗨，{user?.displayName || '你好'}
-        </Text>
-        <Text className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          今天想穿什麼？
-        </Text>
+    <Screen>
+      {/* 刊頭 */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.ink }}>
+        <Numeral size={20}>{dateLabel}</Numeral>
+        {weatherText ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="cloud-outline" size={16} color={c.mute} />
+            <Txt size={13} tone="mute">{weatherText}</Txt>
+          </View>
+        ) : (
+          <Pressable onPress={askWeather} accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 8 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="cloud-outline" size={16} color={c.mute} />
+            <Txt size={13} tone="mute">{coords || weatherAsked ? '暫無天氣資料' : '開啟定位看天氣'}</Txt>
+          </Pressable>
+        )}
       </View>
 
-      {/* Quick Actions */}
-      <View className="px-5 gap-3">
-        <Pressable
-          className="bg-primary-600 rounded-2xl p-5 active:bg-primary-700"
-          onPress={() => router.push('/suggest')}
-        >
-          <View className="flex-row items-center gap-3">
-            <Ionicons name="sparkles" size={28} color="white" />
-            <View className="flex-1">
-              <Text className="text-white text-lg font-semibold">今日穿搭推薦</Text>
-              <Text className="text-primary-200 text-sm mt-0.5">根據天氣和你的衣櫃智慧推薦</Text>
+      {/* 大標 */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 18 }}>
+        <View>
+          <Eyebrow>TODAY'S EDIT</Eyebrow>
+          <Serif size={40} letterSpacing={1.6} style={{ marginTop: 4, lineHeight: 44 }} accessibilityRole="header">今日穿搭</Serif>
+        </View>
+        {total > 0 ? (
+          <Numeral size={16} tone="mute" style={{ paddingBottom: 6 }}>{`No. ${pad((index % total) + 1)} / ${pad(total)}`}</Numeral>
+        ) : null}
+      </View>
+
+      {/* 場合 */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 12, alignItems: 'center' }}>
+        <Chip label="不限場合" selected={!occasion} onPress={() => { setOccasion(undefined); setIndex(0); }} />
+        {Object.entries(OccasionLabel).map(([k, label]) => (
+          <Chip key={k} label={label} selected={occasion === k} onPress={() => { setOccasion(occasion === k ? undefined : k); setIndex(0); }} />
+        ))}
+      </ScrollView>
+
+      {/* 推薦大圖 */}
+      {isLoading ? (
+        <View style={{ height: 262, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={c.ink} />
+        </View>
+      ) : !current ? (
+        <View style={{ height: 262, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
+          <Txt tone="mute" style={{ textAlign: 'center' }}>目前沒有乾淨又合季節的衣物可以搭配</Txt>
+          <Button label="看洗衣籃" variant="outline" onPress={() => router.push('/laundry')} />
+        </View>
+      ) : (
+        <View>
+          <View style={{ height: 262, backgroundColor: c.card, flexDirection: 'row', flexWrap: 'wrap', padding: 8 }}>
+            {current.items.map((it) => (
+              <Pressable
+                key={it.id}
+                onPress={() => router.push(`/item/${it.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={it.name}
+                style={{ width: `${100 / cols}%`, height: `${100 / rows}%`, padding: 4 }}
+              >
+                <GarmentTile path={it.thumbnail} fill />
+              </Pressable>
+            ))}
+            <View style={{ position: 'absolute', left: 12, bottom: 10, backgroundColor: c.paper, paddingHorizontal: 8, paddingVertical: 4 }}>
+              <Txt size={11} letterSpacing={1.8} style={{ lineHeight: 16 }}>
+                {occasion ? OccasionLabel[occasion as keyof typeof OccasionLabel] : '日常'}
+                {me ? `・${SeasonLabel[me.effectiveSeason as keyof typeof SeasonLabel]}季` : ''}
+              </Txt>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="white" />
           </View>
-        </Pressable>
 
-        <View className="flex-row gap-3">
-          <Pressable
-            className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-            onPress={() => router.push('/item/add')}
-          >
-            <Ionicons name="add-circle-outline" size={28} color="#4c6ef5" />
-            <Text className="text-gray-900 dark:text-gray-50 font-semibold mt-2">新增衣物</Text>
-            <Text className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">拍照或上傳</Text>
-          </Pressable>
+          <Txt size={13} style={{ marginTop: 12 }}>{names}</Txt>
+          {advice ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <View style={{ width: 6, height: 6, backgroundColor: c.accent }} />
+              <Txt size={13} tone="mute">{advice}</Txt>
+            </View>
+          ) : null}
 
-          <Pressable
-            className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-            onPress={() => router.push('/outfit/builder')}
-          >
-            <Ionicons name="layers-outline" size={28} color="#4c6ef5" />
-            <Text className="text-gray-900 dark:text-gray-50 font-semibold mt-2">組合穿搭</Text>
-            <Text className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">搭配你的衣物</Text>
-          </Pressable>
-        </View>
-
-        <View className="flex-row gap-3">
-          <Pressable
-            className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-            onPress={() => router.push('/wear-history')}
-          >
-            <Ionicons name="calendar-outline" size={28} color="#8b5cf6" />
-            <Text className="text-gray-900 dark:text-gray-50 font-semibold mt-2">穿著紀錄</Text>
-            <Text className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">日曆查看歷史</Text>
-          </Pressable>
-
-          <Pressable
-            className="flex-1 bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-            onPress={() => router.push('/declutter')}
-          >
-            <Ionicons name="trash-outline" size={28} color="#ef4444" />
-            <Text className="text-gray-900 dark:text-gray-50 font-semibold mt-2">斷捨離</Text>
-            <Text className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">整理你的衣櫃</Text>
-          </Pressable>
-        </View>
-
-        <Pressable
-          className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800 flex-row items-center gap-3"
-          onPress={() => router.push('/profile')}
-        >
-          <Ionicons name="stats-chart-outline" size={28} color="#10b981" />
-          <View className="flex-1">
-            <Text className="text-gray-900 dark:text-gray-50 font-semibold">統計分析</Text>
-            <Text className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">衣櫃數據、穿著頻率、每次成本</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            {worn ? (
+              <View
+                accessibilityLiveRegion="polite"
+                style={{ flex: 1, minHeight: 48, borderWidth: 1, borderColor: c.ink, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Ionicons name="checkmark" size={18} color={c.ink} />
+                <Txt size={15} letterSpacing={1.2} style={{ fontWeight: '500' }}>已記錄今天穿搭</Txt>
+              </View>
+            ) : (
+              <Button label="就穿這套" onPress={wearThis} loading={saving} style={{ flex: 1 }} />
+            )}
+            <Button
+              label="換一套"
+              variant="outline"
+              icon="swap-horizontal-outline"
+              onPress={() => setIndex((i) => (i + 1) % Math.max(total, 1))}
+              disabled={total < 2}
+              style={{ flex: 1 }}
+            />
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
-        </Pressable>
+        </View>
+      )}
+
+      {/* 本週 */}
+      <SectionHeader title="本週穿搭" link="查看日記" onLink={() => router.push('/(tabs)/journal')} style={{ marginTop: 22 }} />
+      <View style={{ flexDirection: 'row', gap: 4, marginTop: 10 }}>
+        {week.map((d) => {
+          const key = localDateString(d);
+          const isToday = key === todayKey;
+          const logged = loggedDays.has(key);
+          const fg = isToday ? c.onInk : c.ink;
+          return (
+            <View
+              key={key}
+              accessibilityLabel={`${d.getMonth() + 1} 月 ${d.getDate()} 日${logged ? '，已有穿搭紀錄' : ''}`}
+              style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 6, backgroundColor: isToday ? c.ink : 'transparent' }}
+            >
+              <Txt size={11} style={{ color: fg, lineHeight: 16 }}>{WEEK_ZH[d.getDay()]}</Txt>
+              <Numeral size={20} style={{ color: fg }}>{String(d.getDate())}</Numeral>
+              <View style={{ width: 6, height: 6, backgroundColor: logged ? (isToday ? c.onInk : c.accent) : 'transparent' }} />
+              <Txt size={10} style={{ color: isToday ? c.onInk : c.mute, lineHeight: 14 }}>{logged ? '已記錄' : isToday ? '今天' : ' '}</Txt>
+            </View>
+          );
+        })}
       </View>
 
-      <View className="h-8" />
-    </ScrollView>
+      {/* 待洗提醒 */}
+      <Pressable
+        onPress={() => router.push('/laundry')}
+        accessibilityRole="button"
+        style={({ pressed }) => ({
+          marginTop: 14,
+          minHeight: 48,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: c.line,
+          opacity: pressed ? 0.65 : 1,
+        })}
+      >
+        {dirty + cleaning > 0 ? (
+          <Txt size={13}>
+            <Txt size={13} tone="accent" bold>{`待洗 ${dirty} 件`}</Txt>
+            <Txt size={13} tone="mute">{cleaning > 0 ? ` · 送洗中 ${cleaning} 件` : ' · 點開洗衣籃'}</Txt>
+          </Txt>
+        ) : (
+          <Txt size={13} tone="mute">洗衣籃是空的，衣服都是乾淨的</Txt>
+        )}
+        <Ionicons name="chevron-forward" size={14} color={c.ink} />
+      </Pressable>
+    </Screen>
   );
 }
