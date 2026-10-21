@@ -1,89 +1,77 @@
-import { View, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
-import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
+import { View, Pressable } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { OccasionLabel } from '@closet/shared';
-import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
 import { useColors } from '@/lib/theme';
-import { Screen, PageHeader, Hairline, Txt, Serif, Button } from '@/components/ui';
+import { Screen, PageHeader, Txt } from '@/components/ui';
+import { LooksTab } from '@/components/plan/LooksTab';
+import { PlanTab } from '@/components/plan/PlanTab';
+import { PackTab } from '@/components/plan/PackTab';
 
-const GAP = 12;
+type Seg = 'look' | 'plan' | 'pack';
+const SEGS: { key: Seg; label: string }[] = [
+  { key: 'look', label: '作品集' },
+  { key: 'plan', label: '計畫' },
+  { key: 'pack', label: '打包' },
+];
 
+/** 穿搭：作品集 / 計畫 / 打包（?seg=plan 可直接開到某一段） */
 export default function OutfitsScreen() {
   const c = useColors();
-  const { width } = useWindowDimensions();
-  const cols = width >= 700 ? 3 : 2;
-  const maxWidth = cols === 2 ? 560 : 900;
-  const cardWidth = Math.floor((Math.min(width, maxWidth) - 40 - GAP * (cols - 1)) / cols);
+  const params = useLocalSearchParams<{ seg?: string }>();
+  const [seg, setSeg] = useState<Seg>('look');
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['outfits'],
-    queryFn: () => api('/api/outfits'),
-  });
-  const outfits: any[] = data?.outfits ?? [];
+  useEffect(() => {
+    if (params.seg === 'plan' || params.seg === 'pack' || params.seg === 'look') setSeg(params.seg);
+  }, [params.seg]);
 
   return (
-    <Screen maxWidth={maxWidth}>
+    <Screen maxWidth={560}>
       <PageHeader
         title="穿搭"
-        sub={`${outfits.length} looks`}
-        right={<Button label="新穿搭" icon="add" height={44} onPress={() => router.push('/outfit/builder')} />}
+        right={
+          <Pressable
+            onPress={() => router.push('/outfit/builder')}
+            accessibilityRole="button"
+            accessibilityLabel="新穿搭"
+            style={({ pressed }) => ({
+              height: 40,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: c.ink,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Ionicons name="add" size={16} color={c.ink} />
+            <Txt size={13}>新穿搭</Txt>
+          </Pressable>
+        }
       />
-      <Hairline tone="ink" style={{ marginTop: 8, marginBottom: 16 }} />
 
-      {isLoading ? (
-        <ActivityIndicator color={c.ink} style={{ marginTop: 48 }} />
-      ) : outfits.length === 0 ? (
-        <View style={{ alignItems: 'center', paddingVertical: 56, gap: 14 }}>
-          <Ionicons name="layers-outline" size={44} color={c.mute} />
-          <Txt tone="mute">還沒有建立穿搭組合</Txt>
-          <Button label="建立第一套穿搭" onPress={() => router.push('/outfit/builder')} />
-        </View>
-      ) : (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, rowGap: 20 }}>
-          {outfits.map((o) => {
-            const thumbs = (o.items ?? []).map((oi: any) => oi.clothingItem?.images?.[0]?.thumbnailPath).slice(0, 4);
-            const count = o.items?.length ?? 0;
-            const wears = o._count?.wearLogs ?? 0;
-            const occ = (o.occasions ?? []).map((k: string) => OccasionLabel[k as keyof typeof OccasionLabel]).filter(Boolean).slice(0, 2).join(' / ');
-            return (
-              <Pressable
-                key={o.id}
-                onPress={() => router.push(`/outfit/${o.id}`)}
-                accessibilityRole="button"
-                accessibilityLabel={o.name || '未命名穿搭'}
-                style={({ pressed }) => ({ width: cardWidth, gap: 6, opacity: pressed ? 0.75 : 1 })}
-              >
-                <View style={{ height: 176, backgroundColor: c.card, flexDirection: 'row', flexWrap: 'wrap', padding: 6 }}>
-                  {thumbs.length === 0 ? (
-                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="shirt-outline" size={32} color={c.mute} />
-                    </View>
-                  ) : (
-                    thumbs.map((t: string | undefined, i: number) => (
-                      <View key={i} style={{ width: thumbs.length === 1 ? '100%' : '50%', height: thumbs.length <= 2 ? '100%' : '50%', padding: 3 }}>
-                        {t ? (
-                          <Image source={{ uri: imageUrl(t) }} style={{ flex: 1 }} contentFit="contain" accessibilityIgnoresInvertColors />
-                        ) : (
-                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="shirt-outline" size={20} color={c.mute} />
-                          </View>
-                        )}
-                      </View>
-                    ))
-                  )}
-                </View>
-                <Serif size={14} medium numberOfLines={1}>{o.name || '未命名穿搭'}</Serif>
-                <Txt size={11} tone="mute" numberOfLines={1} style={{ marginTop: -4, lineHeight: 16 }}>
-                  {`${count} 件 · 穿過 ${wears} 次${occ ? ' · ' + occ : ''}`}
-                </Txt>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 24, marginTop: 8, borderBottomWidth: 1, borderBottomColor: c.ink }}>
+        {SEGS.map((s) => {
+          const on = s.key === seg;
+          return (
+            <Pressable
+              key={s.key}
+              onPress={() => setSeg(s.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              hitSlop={{ top: 4, bottom: 4 }}
+              style={{ paddingVertical: 10, marginBottom: -1, borderBottomWidth: 2, borderBottomColor: on ? c.ink : 'transparent' }}
+            >
+              <Txt size={14} bold={on} tone={on ? 'ink' : 'mute'}>{s.label}</Txt>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {seg === 'look' ? <LooksTab maxWidth={560} /> : null}
+      {seg === 'plan' ? <PlanTab /> : null}
+      {seg === 'pack' ? <PackTab /> : null}
     </Screen>
   );
 }

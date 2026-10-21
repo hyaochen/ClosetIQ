@@ -7,31 +7,20 @@ import { useQuery } from '@tanstack/react-query';
 import { OccasionLabel, WeatherConditionLabel, SeasonLabel } from '@closet/shared';
 import { api } from '@/lib/api';
 import { useColors } from '@/lib/theme';
-import { useLaundry, useMe, logWear, localDateString, logDateKey } from '@/lib/queries';
+import { useLaundry, useMe, logWear, localDateString } from '@/lib/queries';
+import { usePlanWeek, parseYmd } from '@/lib/plan-queries';
 import { showAlert } from '@/lib/alert';
 import {
   Screen, Txt, Serif, Numeral, Eyebrow, Hairline, SectionHeader, Button, Chip, GarmentTile,
 } from '@/components/ui';
 
 const WEEK_EN = ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.'];
-const WEEK_ZH = ['日', '一', '二', '三', '四', '五', '六'];
 
 type SuggestionItem = { id: string; name: string; category: string; thumbnail: string | null };
 type Suggestion = { items: SuggestionItem[]; score: number };
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
-}
-
-/** 本週（週一到週日）的日期字串 */
-function currentWeek(now: Date) {
-  const dow = (now.getDay() + 6) % 7; // 週一 = 0
-  const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + i);
-    days.push(d);
-  }
-  return days;
 }
 
 export default function TodayScreen() {
@@ -96,19 +85,9 @@ export default function TodayScreen() {
   const sig = current ? current.items.map((i) => i.id).sort().join(',') : null;
   const worn = !!sig && wornSig === sig;
 
-  // 本週紀錄
-  const week = useMemo(() => currentWeek(now), [now]);
-  const from = localDateString(week[0]);
-  const to = localDateString(week[6]);
-  const { data: weekLogs } = useQuery({
-    queryKey: ['wear-logs', 'week', from, to],
-    queryFn: () => api(`/api/wear-logs?from=${from}&to=${to}&limit=100`),
-  });
-  const loggedDays = useMemo(() => {
-    const s = new Set<string>();
-    for (const l of weekLogs?.logs ?? []) s.add(logDateKey(l.date));
-    return s;
-  }, [weekLogs]);
+  // 本週 7 格：今天起 7 天的預報與計畫
+  const { data: weekData } = usePlanWeek(place);
+  const week = weekData?.days ?? [];
 
   const { data: laundry } = useLaundry();
   const dirty = (laundry?.items ?? []).filter((i) => i.laundryStatus === 'DIRTY').length;
@@ -250,24 +229,40 @@ export default function TodayScreen() {
       )}
 
       {/* 本週 */}
-      <SectionHeader title="本週穿搭" link="查看日記" onLink={() => router.push('/(tabs)/journal')} style={{ marginTop: 22 }} />
+      <SectionHeader
+        title="本週穿搭"
+        link="安排計畫"
+        onLink={() => router.push({ pathname: '/(tabs)/outfits', params: { seg: 'plan' } })}
+        style={{ marginTop: 22 }}
+      />
       <View style={{ flexDirection: 'row', gap: 4, marginTop: 10 }}>
         {week.map((d) => {
-          const key = localDateString(d);
-          const isToday = key === todayKey;
-          const logged = loggedDays.has(key);
+          const isToday = d.date === todayKey;
           const fg = isToday ? c.onInk : c.ink;
+          const { m, d: dayNum } = parseYmd(d.date);
+          const temp = d.forecast ? `${Math.round((d.forecast.min + d.forecast.max) / 2)}°` : '--';
+          const status = d.hasPlan ? '，已安排穿搭' : '';
           return (
-            <View
-              key={key}
-              accessibilityLabel={`${d.getMonth() + 1} 月 ${d.getDate()} 日${logged ? '，已有穿搭紀錄' : ''}`}
+            <Pressable
+              key={d.date}
+              onPress={() => router.push({ pathname: '/(tabs)/outfits', params: { seg: 'plan' } })}
+              accessibilityRole="button"
+              accessibilityLabel={`${m} 月 ${dayNum} 日 星期${d.weekday}${status}${d.hasWearLog ? '，已有穿著紀錄' : ''}`}
               style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 6, backgroundColor: isToday ? c.ink : 'transparent' }}
             >
-              <Txt size={11} style={{ color: fg, lineHeight: 16 }}>{WEEK_ZH[d.getDay()]}</Txt>
-              <Numeral size={20} style={{ color: fg }}>{String(d.getDate())}</Numeral>
-              <View style={{ width: 6, height: 6, backgroundColor: logged ? (isToday ? c.onInk : c.accent) : 'transparent' }} />
-              <Txt size={10} style={{ color: isToday ? c.onInk : c.mute, lineHeight: 14 }}>{logged ? '已記錄' : isToday ? '今天' : ' '}</Txt>
-            </View>
+              <Txt size={11} style={{ color: fg, lineHeight: 16 }}>{d.weekday}</Txt>
+              <Numeral size={20} style={{ color: fg }}>{String(dayNum)}</Numeral>
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  backgroundColor: d.hasPlan ? (isToday ? c.onInk : c.accent) : 'transparent',
+                  borderWidth: !d.hasPlan && d.hasWearLog ? 1 : 0,
+                  borderColor: fg,
+                }}
+              />
+              <Txt size={10} style={{ color: isToday ? c.onInk : c.mute, lineHeight: 14 }}>{temp}</Txt>
+            </Pressable>
           );
         })}
       </View>
