@@ -1,10 +1,12 @@
-import { View, Text, Pressable, Modal } from 'react-native';
+import { View, Pressable, Modal } from 'react-native';
 import { useAlertStore } from '@/lib/alert';
-import { useThemeStore } from '@/lib/theme-store';
+import { useColors } from '@/lib/theme';
+import { Txt, Serif } from '@/components/ui/Text';
 
+/** 提示 / 確認對話框：直角、1px 墨線、無陰影；取消在左、確認在右 */
 export function AlertModal() {
   const { visible, title, message, buttons, hide } = useAlertStore();
-  const { isDark } = useThemeStore();
+  const c = useColors();
 
   const handlePress = (onPress?: () => void) => {
     hide();
@@ -14,50 +16,52 @@ export function AlertModal() {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={hide}>
       <Pressable
-        className="flex-1 justify-center items-center"
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 24 }}
         onPress={hide}
       >
         <Pressable
-          className="mx-8 w-[85%] max-w-sm rounded-2xl overflow-hidden"
-          style={{ backgroundColor: isDark ? '#1f2937' : '#ffffff' }}
+          accessibilityRole="alert"
           onPress={(e) => e.stopPropagation()}
+          style={{ width: '100%', maxWidth: 360, backgroundColor: c.paper, borderWidth: 1, borderColor: c.ink }}
         >
-          <View className="px-6 pt-6 pb-4">
-            <Text className="text-lg font-bold text-center text-gray-900 dark:text-gray-50">
-              {title}
-            </Text>
+          <View style={{ paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18 }}>
+            <Serif size={19} style={{ textAlign: 'center' }}>{title}</Serif>
             {message ? (
-              <Text className="text-sm text-center text-gray-600 dark:text-gray-400 mt-2">
-                {message}
-              </Text>
+              <Txt size={14} tone="mute" style={{ textAlign: 'center', marginTop: 8 }}>{message}</Txt>
             ) : null}
           </View>
-
-          <View
-            className="flex-row border-t border-gray-200 dark:border-gray-700"
-          >
-            {buttons.map((btn, i) => (
-              <Pressable
-                key={i}
-                className={`flex-1 py-3.5 items-center active:bg-gray-100 dark:active:bg-gray-700 ${
-                  i > 0 ? 'border-l border-gray-200 dark:border-gray-700' : ''
-                }`}
-                onPress={() => handlePress(btn.onPress)}
-              >
-                <Text
-                  className={`text-base font-semibold ${
-                    btn.style === 'cancel'
-                      ? 'text-gray-500 dark:text-gray-400'
-                      : btn.style === 'destructive'
-                        ? 'text-red-500'
-                        : 'text-primary-600 dark:text-primary-400'
-                  }`}
+          <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.ink }}>
+            {buttons.map((btn, i) => {
+              const destructive = btn.style === 'destructive';
+              const cancel = btn.style === 'cancel';
+              return (
+                <Pressable
+                  key={i}
+                  accessibilityRole="button"
+                  onPress={() => handlePress(btn.onPress)}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    minHeight: 48,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderLeftWidth: i > 0 ? 1 : 0,
+                    borderLeftColor: c.ink,
+                    backgroundColor: cancel ? (pressed ? c.card : 'transparent') : pressed ? c.mute : c.ink,
+                  })}
                 >
-                  {btn.text}
-                </Text>
-              </Pressable>
-            ))}
+                  <Txt
+                    size={15}
+                    style={{
+                      fontWeight: '500',
+                      letterSpacing: 1.2,
+                      color: cancel ? c.mute : destructive ? c.paper : c.onInk,
+                    }}
+                  >
+                    {btn.text}
+                  </Txt>
+                </Pressable>
+              );
+            })}
           </View>
         </Pressable>
       </Pressable>

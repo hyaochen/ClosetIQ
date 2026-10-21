@@ -67,7 +67,8 @@ export async function api<T = any>(
     };
 
     // Don't set Content-Type for FormData (browser sets it with boundary)
-    if (!(options.body instanceof FormData)) {
+    // Only send Content-Type when there is a body (Fastify rejects an empty JSON body on DELETE/PATCH)
+    if (options.body && !(options.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
 

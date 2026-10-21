@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+// tokens 與 lib/theme.ts 保持一致。淺色為預設；深色用 dark:bg-paper-dark 之類的 -dark 色。
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
@@ -6,18 +7,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#f0f4ff',
-          100: '#dbe4ff',
-          200: '#bac8ff',
-          300: '#91a7ff',
-          400: '#748ffc',
-          500: '#5c7cfa',
-          600: '#4c6ef5',
-          700: '#4263eb',
-          800: '#3b5bdb',
-          900: '#364fc7',
-        },
+        paper: { DEFAULT: '#F4F0E8', dark: '#161513' },
+        card: { DEFAULT: '#E9E2D4', dark: '#242220' },
+        ink: { DEFAULT: '#1A1917', dark: '#EDE7DC' },
+        mute: { DEFAULT: '#5E5A53', dark: '#A59E92' },
+        line: { DEFAULT: '#CFC7B8', dark: '#3D3933' },
+        accent: { DEFAULT: '#A8472A', dark: '#D0794F' },
+        olive: { DEFAULT: '#4F5B3A', dark: '#9AAA78' },
+      },
+      fontFamily: {
+        serif: ["'Noto Serif TC'", 'serif'],
+        sans: ["'Noto Sans TC'", 'sans-serif'],
+        numeral: ["'Cormorant Garamond'", 'serif'],
+      },
+      borderRadius: {
+        none: '0px',
+        sm: '1px',
+        DEFAULT: '2px',
       },
     },
   },
