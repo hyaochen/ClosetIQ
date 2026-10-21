@@ -1,11 +1,11 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, API_BASE } from '@/lib/images';
 import { queryClient } from '@/lib/query-client';
 import { invalidateWardrobe, useStorageLocations } from '@/lib/queries';
 import { useColors } from '@/lib/theme';
@@ -57,6 +57,26 @@ export default function AddItemScreen() {
       const d = draftRef.current;
       if (d && !savedRef.current) void discardDraft(d.itemId, [d.imageId]);
     };
+  }, []);
+
+  // 關閉分頁／重新整理時 effect cleanup 不會跑：用 keepalive 請求盡量清掉草稿（做不到的由後端 24 小時後清）
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onHide = () => {
+      const d = draftRef.current;
+      if (!d || savedRef.current) return;
+      try {
+        fetch(`${API_BASE}/api/items/${d.itemId}?permanent=true`, {
+          method: 'DELETE',
+          keepalive: true,
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        });
+      } catch {
+        // 盡力而為
+      }
+    };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
   }, []);
 
   // AI 建議回來後只填還空著的欄位
@@ -253,13 +273,15 @@ export default function AddItemScreen() {
     return (
       <CheckerFrame height={height} style={{ marginHorizontal: 20, marginTop: 12 }}>
         {cutDone ? (
-          <Image
-            source={{ uri: imageUrl(cut!.cutoutPath!) }}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="contain"
-            accessibilityLabel="去背後的衣物"
-            accessibilityIgnoresInvertColors
-          />
+          <View style={{ width: '100%', height: '100%', padding: 14 }}>
+            <Image
+              source={{ uri: imageUrl(cut!.cutoutPath!) }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              accessibilityLabel="去背後的衣物"
+              accessibilityIgnoresInvertColors
+            />
+          </View>
         ) : photo ? (
           <Image
             source={{ uri: photo.uri }}

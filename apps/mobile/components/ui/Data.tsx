@@ -53,12 +53,15 @@ export function GarmentTile({
   return (
     <View style={[fill ? { flex: 1 } : { height }, { backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
       {shown.path ? (
-        <Image
-          source={{ uri: imageUrl(shown.path) }}
-          style={{ width: '100%', height: '100%', opacity: dim ? 0.55 : 1 }}
-          contentFit={shown.cutout ? 'contain' : fit}
-          accessibilityIgnoresInvertColors
-        />
+        // 去背圖是貼著衣物外框裁的，留一點邊距才不會頂到卡片邊
+        <View style={{ width: '100%', height: '100%', padding: shown.cutout ? 8 : 0 }}>
+          <Image
+            source={{ uri: imageUrl(shown.path) }}
+            style={{ width: '100%', height: '100%', opacity: dim ? 0.55 : 1 }}
+            contentFit={shown.cutout ? 'contain' : fit}
+            accessibilityIgnoresInvertColors
+          />
+        </View>
       ) : (
         <Ionicons name="shirt-outline" size={fill ? 32 : Math.min(40, height / 3)} color={c.mute} style={{ opacity: dim ? 0.55 : 1 }} />
       )}

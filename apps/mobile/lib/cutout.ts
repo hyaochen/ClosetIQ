@@ -52,9 +52,8 @@ export async function skipCutoutOnServer(imageId: string) {
   queryClient.invalidateQueries({ queryKey: ['cutout', imageId] });
 }
 
-/** 放棄還沒存的草稿衣物：先刪圖（連檔案）再永久刪除衣物列 */
-export async function discardDraft(itemId: string, imageIds: string[]) {
-  for (const id of imageIds) await api(`/api/images/${id}`, { method: 'DELETE' }).catch(() => {});
+/** 放棄還沒存的草稿衣物：永久刪除（後端會連圖片檔一起清） */
+export async function discardDraft(itemId: string, _imageIds: string[] = []) {
   await api(`/api/items/${itemId}?permanent=true`, { method: 'DELETE' }).catch(() => {});
 }
 

@@ -306,6 +306,9 @@ export async function itemRoutes(app: FastifyInstance) {
     }
 
     if (permanent === 'true') {
+      // ---- P2 ---- remove the image files too (the DB cascade only removes rows)
+      const imgs = await prisma.clothingImage.findMany({ where: { clothingItemId: id }, select: { id: true } });
+      for (const img of imgs) await deleteClothingImage(img.id);
       await prisma.clothingItem.delete({ where: { id } });
       return reply.send({ message: '衣物已永久刪除' });
     }

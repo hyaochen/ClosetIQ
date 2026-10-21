@@ -154,7 +154,7 @@ export default function ItemDetailScreen() {
                   // 主圖優先用去背圖（放在卡色底上），否則用顯示版原圖
                   const shown = fullImage(img);
                   return (
-                    <View key={img.id} style={{ width: colW, height: 292, alignItems: 'center', justifyContent: 'center' }}>
+                    <View key={img.id} style={{ width: colW, height: 292, alignItems: 'center', justifyContent: 'center', padding: shown.cutout ? 16 : 0 }}>
                       {shown.path ? (
                         <Image
                           source={{ uri: imageUrl(shown.path) }}
