@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { OccasionLabel, ClothingCategoryLabel } from '@closet/shared';
@@ -7,7 +7,11 @@ import { api } from '@/lib/api';
 import { queryClient } from '@/lib/query-client';
 import { useColors } from '@/lib/theme';
 import { logWear, logDateKey } from '@/lib/queries';
+import { imageUrl } from '@/lib/images';
+import { exportOutfitPng } from '@/components/canvas/export';
+import { primaryImage, trayThumbPath } from '@/components/canvas/canvas-utils';
 import { showAlert, showConfirm } from '@/lib/alert';
+import { Ionicons } from '@expo/vector-icons';
 import { TopBar, Txt, Serif, Numeral, Eyebrow, Button, GarmentTile, SectionHeader, StatRow } from '@/components/ui';
 
 export default function OutfitDetailScreen() {
@@ -21,6 +25,9 @@ export default function OutfitDetailScreen() {
     enabled: !!id,
   });
   const outfit = data?.outfit;
+  // 詳情 API 的 wearLogs 只取最近 10 筆，總次數從列表的 _count 取
+  const { data: listData } = useQuery({ queryKey: ['outfits', 'wear-count'], queryFn: () => api('/api/outfits'), enabled: !!id });
+  const totalWears: number | undefined = listData?.outfits?.find((o: any) => o.id === id)?._count?.wearLogs;
 
   const handleWearToday = async () => {
     if (!outfit) return;
@@ -34,6 +41,18 @@ export default function OutfitDetailScreen() {
       showAlert('記錄失敗', err.message);
     } finally {
       setWearLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (!outfit?.canvasLayout) {
+      showAlert('尚未排版', '這套穿搭還沒有畫布版面，請先按「編輯畫布」排好再匯出。');
+      return;
+    }
+    try {
+      await exportOutfitPng(id, outfit.name || '穿搭');
+    } catch (err: any) {
+      showAlert('匯出失敗', err.message);
     }
   };
 
@@ -57,18 +76,36 @@ export default function OutfitDetailScreen() {
     );
   }
 
-  const wearCount = outfit.wearLogs?.length ?? 0;
+  const wearCount = totalWears ?? outfit.wearLogs?.length ?? 0;
   const itemCount = outfit.items?.length ?? 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
       <TopBar eyebrow="LOOK" title={outfit.name || '未命名穿搭'} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={{ width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 18 }}>
           <Eyebrow>OUTFIT</Eyebrow>
           <Serif size={28} letterSpacing={0.8} style={{ marginTop: 4, lineHeight: 35 }} accessibilityRole="header">{outfit.name || '未命名穿搭'}</Serif>
 
-          <View style={{ marginTop: 14 }}>
+          {/* 封面：伺服器合成的拼貼圖（4:5）；還沒有版面時顯示空白底與引導 */}
+          <View style={{ marginTop: 14, alignSelf: 'center', width: '100%', maxWidth: 420, aspectRatio: 4 / 5, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' }}>
+            {outfit.coverPath ? (
+              <Image source={{ uri: imageUrl(outfit.coverPath) }} resizeMode="cover" style={{ width: '100%', height: '100%' }} accessibilityLabel={`${outfit.name || '穿搭'} 封面`} accessibilityIgnoresInvertColors />
+            ) : (
+              <View style={{ alignItems: 'center', paddingHorizontal: 28, gap: 6 }}>
+                <Ionicons name="grid-outline" size={28} color={c.mute} />
+                <Txt size={13} tone="mute" style={{ textAlign: 'center' }}>這套穿搭還沒有拼貼封面。按「編輯畫布」排好版面並儲存。</Txt>
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 }}>
+            <Pressable onPress={handleExport} accessibilityRole="button" accessibilityLabel="匯出圖片" style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
+              <Ionicons name="download-outline" size={16} color={c.ink} />
+              <Txt size={13} style={{ textDecorationLine: 'underline' }}>匯出圖片</Txt>
+            </Pressable>
+          </View>
+
+          <View style={{ marginTop: 6 }}>
             <StatRow
               stats={[
                 { value: itemCount, label: '件衣物' },
@@ -89,7 +126,7 @@ export default function OutfitDetailScreen() {
                 accessibilityLabel={item?.name}
                 style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 76, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.line, opacity: pressed ? 0.7 : 1 })}
               >
-                <GarmentTile path={item?.images?.[0]?.thumbnailPath} height={60} style={{ width: 60 }} />
+                <GarmentTile path={trayThumbPath(primaryImage(item))} height={60} style={{ width: 60 }} />
                 <View style={{ flex: 1 }}>
                   <Serif size={15} medium numberOfLines={1}>{item?.name}</Serif>
                   <Txt size={12} tone="mute">{ClothingCategoryLabel[item?.category as keyof typeof ClothingCategoryLabel] || item?.category}</Txt>
@@ -132,7 +169,10 @@ export default function OutfitDetailScreen() {
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.ink }}>
         <View style={{ width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 22 }}>
-          <Button label="今天穿了這套" onPress={handleWearToday} loading={wearLoading} />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button label="編輯畫布" variant="outline" style={{ flex: 1 }} onPress={() => router.push({ pathname: '/outfit/canvas', params: { id } })} />
+            <Button label="今天穿了這套" style={{ flex: 1.4 }} onPress={handleWearToday} loading={wearLoading} />
+          </View>
         </View>
       </View>
     </View>
