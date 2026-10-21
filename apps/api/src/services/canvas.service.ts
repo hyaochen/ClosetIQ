@@ -183,7 +183,7 @@ const SLOTS: Record<string, Slot[]> = {
     { x: 0.32, y: 0.5, scale: 0.4, rotate: -4, z: 3 },
   ],
   TOP: [
-    { x: 0.66, y: 0.26, scale: 0.44, rotate: -3, z: 2 },
+    { x: 0.62, y: 0.27, scale: 0.44, rotate: -3, z: 2 },
     { x: 0.66, y: 0.44, scale: 0.36, rotate: 3, z: 2 },
   ],
   DRESS: [
@@ -199,7 +199,7 @@ const SLOTS: Record<string, Slot[]> = {
     { x: 0.5, y: 0.88, scale: 0.3, rotate: -3, z: 4 },
   ],
   BAG: [
-    { x: 0.82, y: 0.14, scale: 0.28, rotate: 8, z: 6 },
+    { x: 0.86, y: 0.12, scale: 0.26, rotate: 8, z: 6 },
     { x: 0.2, y: 0.1, scale: 0.26, rotate: -6, z: 6 },
   ],
   ACCESSORY: [
