@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>單品詳情</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Noto+Serif+TC:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A1917;text-decoration:none}a:hover{color:#A8472A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F0E8; color: #1A1917; font-family: 'Noto Sans TC', sans-serif; box-sizing: border-box">
+  <div style="height: 56px; padding: 6px 8px 0 8px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box">
+    <a href="Wardrobe.dc.html" aria-label="返回衣櫃" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1917" stroke-width="1.5" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+    </a>
+    <div style="font-size: 11px; letter-spacing: 0.18em; color: #5E5A53">ITEM No. 0047</div>
+    <button aria-label="編輯" style="width: 44px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1917" stroke-width="1.5" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"></path></svg>
+    </button>
+  </div>
+
+  <div style="height: 292px; background: #E9E2D4; position: relative; display: flex; align-items: center; justify-content: center">
+    <svg viewBox="0 0 100 100" width="236" height="236" aria-hidden="true"><path d="M30 10 L44 6 L50 22 L56 6 L70 10 L86 30 L84 88 L72 88 L70 46 L70 94 L30 94 L30 46 L28 88 L16 88 L14 30 Z M50 22 L50 94" fill="#B08A5E" stroke="#1A1917" stroke-width="0.9" stroke-linejoin="round"></path></svg>
+    <span style="position: absolute; right: 14px; bottom: 10px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px">1 / 3</span>
+  </div>
+
+  <div style="padding: 16px 20px 0 20px; display: flex; flex-direction: column">
+    <div style="font-size: 11px; letter-spacing: 0.18em; color: #5E5A53">外套 · OUTERWEAR</div>
+    <h1 style="margin: 4px 0 0 0; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 26px; letter-spacing: 0.03em">駝色短版風衣</h1>
+    <div style="font-size: 12px; color: #5E5A53; margin-top: 2px">UNIQLO · M · 2025.03 購入 NT$2,190</div>
+
+    <div role="group" aria-label="洗衣狀態" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border: 1px solid #1A1917">
+      <sc-for list="{{states}}" as="s" hint-placeholder-count="3">
+        <button onClick="{{s.pick}}" aria-pressed="{{s.on}}" style="height: 40px; border: 0; border-left: {{s.bl}}; background: {{s.bg}}; color: {{s.fg}}; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; letter-spacing: 0.08em; cursor: pointer">{{s.label}}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border-top: 1px solid #1A1917; border-bottom: 1px solid #1A1917">
+      <sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+        <div style="padding: 8px 0 8px 12px; border-left: {{s.bl}}">
+          <div style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 600; font-size: 30px; line-height: 1.05">{{s.v}}</div>
+          <div style="font-size: 11px; color: #5E5A53">{{s.k}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-for list="{{specs}}" as="r" hint-placeholder-count="3">
+      <div style="display: flex; justify-content: space-between; align-items: center; height: 38px; border-bottom: 1px solid #CFC7B8; font-size: 13px">
+        <span style="color: #5E5A53; letter-spacing: 0.1em">{{r.k}}</span>
+        <span>{{r.v}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 20px 22px 20px; background: #F4F0E8; border-top: 1px solid #1A1917; display: flex; gap: 10px">
+    <a href="Canvas.dc.html" style="flex: 1 1 0; height: 48px; border: 1px solid #1A1917; display: flex; align-items: center; justify-content: center; font-size: 14px; letter-spacing: 0.08em">放進穿搭</a>
+    <a href="Journal.dc.html" style="flex: 1.4 1 0; height: 48px; background: #1A1917; color: #F4F0E8; display: flex; align-items: center; justify-content: center; font-size: 14px; letter-spacing: 0.08em">今天穿它</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { laundry: 'clean' };
+  }
+  renderVals() {
+    var self = this;
+    var cur = this.state.laundry;
+    var states = [['clean','乾淨'],['dirty','待洗'],['cleaning','送洗中']].map(function (s, i) {
+      var on = s[0] === cur;
+      var bg = on ? (s[0] === 'dirty' ? '#A8472A' : '#1A1917') : 'transparent';
+      return { label: s[1], on: on, bg: bg, fg: on ? '#FFFFFF' : '#1A1917', bl: i === 0 ? '0' : '1px solid #1A1917', pick: function () { self.setState({ laundry: s[0] }); } };
+    });
+    var stats = [['18','次穿著'],['122','NT$／次'],['6','天前穿過']].map(function (s, i) {
+      return { v: s[0], k: s[1], bl: i === 0 ? '0' : '1px solid #CFC7B8' };
+    });
+    var specs = [
+      { k: '材質', v: '棉 65% · 聚酯纖維 35%' },
+      { k: '季節', v: '春 · 秋' },
+      { k: '收納', v: '主衣櫃 · 左側吊掛' }
+    ];
+    return { states: states, stats: stats, specs: specs };
+  }
+}
+</script>
+</body>
+</html>

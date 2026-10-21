@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>我的</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Noto+Serif+TC:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A1917;text-decoration:none}a:hover{color:#A8472A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F0E8; color: #1A1917; font-family: 'Noto Sans TC', sans-serif; box-sizing: border-box">
+  <div style="padding: 22px 20px 0 20px; display: flex; flex-direction: column">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #1A1917; padding-bottom: 10px">
+      <h1 style="margin: 0; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 34px; letter-spacing: 0.04em">我的</h1>
+      <span style="font-size: 13px; color: #5E5A53">測試用戶 · <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px">since 2026</span></span>
+    </div>
+
+    <div style="margin-top: 16px; background: #E9E2D4; padding: 14px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <span style="font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 18px">換季整理</span>
+        <span style="font-size: 12px; color: #5E5A53">目前：{{seasonName}}</span>
+      </div>
+      <div role="group" aria-label="目前季節" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 10px; border: 1px solid #1A1917">
+        <sc-for list="{{seasons}}" as="s" hint-placeholder-count="4">
+          <button onClick="{{s.pick}}" aria-pressed="{{s.on}}" style="height: 38px; border: 0; border-left: {{s.bl}}; background: {{s.bg}}; color: {{s.fg}}; font-family: 'Noto Sans TC', sans-serif; font-size: 13px; cursor: pointer">{{s.label}}</button>
+        </sc-for>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 10px">
+        <span style="font-size: 13px; line-height: 1.5">季外衣物 <span style="color: #A8472A; font-weight: 700">12 件</span> 還在主衣櫃，<br>推薦不會再出現它們。</span>
+        <a href="#" style="height: 40px; padding: 0 14px; flex: none; background: #1A1917; color: #F4F0E8; display: flex; align-items: center; font-size: 13px">移到收納箱</a>
+      </div>
+    </div>
+
+    <div style="margin-top: 18px; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #1A1917; padding-bottom: 6px">
+      <span style="font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 17px">收納位置</span>
+      <a href="#" style="font-size: 12px; color: #5E5A53">管理</a>
+    </div>
+    <sc-for list="{{places}}" as="p" hint-placeholder-count="3">
+      <div style="display: flex; align-items: center; gap: 10px; min-height: 42px; border-bottom: 1px solid #CFC7B8; font-size: 13px">
+        <span style="width: 110px">{{p.k}}</span>
+        <span style="flex: 1 1 auto; height: 6px; background: #E9E2D4"><span style="display: block; height: 6px; width: {{p.pct}}; background: #1A1917"></span></span>
+        <span style="width: 40px; text-align: right; font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 600; font-size: 17px">{{p.v}}</span>
+      </div>
+    </sc-for>
+
+    <a href="Wardrobe.dc.html" style="display: flex; justify-content: space-between; align-items: center; min-height: 44px; border-bottom: 1px solid #CFC7B8; font-size: 13px">
+      <span>洗衣籃</span>
+      <span><span style="color: #A8472A; font-weight: 700">待洗 6</span><span style="color: #5E5A53"> · 送洗中 2</span></span>
+    </a>
+
+    <div style="margin-top: 14px; border-top: 1px solid #1A1917">
+      <sc-for list="{{menu}}" as="m" hint-placeholder-count="4">
+        <a href="#" style="display: flex; align-items: center; gap: 14px; min-height: 48px; border-bottom: 1px solid #CFC7B8">
+          <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 600; font-size: 18px; width: 22px; color: #5E5A53">{{m.n}}</span>
+          <span style="flex: 1 1 auto; font-size: 14px">{{m.label}}</span>
+          <span style="font-size: 12px; color: #5E5A53">{{m.hint}}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1917" stroke-width="1.5" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <nav style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #F4F0E8; border-top: 1px solid #1A1917; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); box-sizing: border-box; padding-bottom: 14px">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <a href="{{t.href}}" aria-label="{{t.label}}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; letter-spacing: 0.1em; color: {{t.fg}}; border-top: {{t.bar}}; margin-top: -1px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{t.fg}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+        <span>{{t.label}}</span>
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { season: 'autumn' };
+  }
+  renderVals() {
+    var self = this;
+    var names = { spring: '春季', summer: '夏季', autumn: '秋季', winter: '冬季' };
+    var seasons = [['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(function (s, i) {
+      var on = self.state.season === s[0];
+      return { label: s[1], on: on, bg: on ? '#1A1917' : 'transparent', fg: on ? '#F4F0E8' : '#1A1917', bl: i === 0 ? '0' : '1px solid #1A1917', pick: function () { self.setState({ season: s[0] }); } };
+    });
+    var places = [['主衣櫃', 86], ['床下收納箱', 24], ['老家衣櫃', 18]].map(function (p) {
+      return { k: p[0], v: p[1], pct: Math.round(p[1] / 128 * 100) + '%' };
+    });
+    var menu = [['01', '統計分析', '每次成本、品牌'], ['02', '斷捨離', '9 件建議'], ['03', '備份與還原', ''], ['04', '外觀', '淺色']].map(function (m) {
+      return { n: m[0], label: m[1], hint: m[2] };
+    });
+    var icons = {
+      today: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z',
+      closet: 'M12 7a2 2 0 1 1 2-2c0 1.2-2 1.6-2 3L3 15c-.8.6-.4 2 .6 2h16.8c1 0 1.4-1.4.6-2L12 8',
+      outfit: 'M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5',
+      journal: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6',
+      me: 'M12 12a4 4 0 1 0 0-8a4 4 0 1 0 0 8zM4 21c1.2-4 4.4-6 8-6s6.8 2 8 6'
+    };
+    var tabs = [['today','今日','Main.dc.html'],['closet','衣櫃','Wardrobe.dc.html'],['outfit','穿搭','Plan.dc.html'],['journal','日記','Journal.dc.html'],['me','我的','Me.dc.html']].map(function (t) {
+      var on = t[0] === 'me';
+      return { label: t[1], href: t[2], icon: icons[t[0]], fg: on ? '#1A1917' : '#5E5A53', bar: on ? '2px solid #1A1917' : '2px solid transparent' };
+    });
+    return { seasons: seasons, seasonName: names[this.state.season], places: places, menu: menu, tabs: tabs };
+  }
+}
+</script>
+</body>
+</html>
