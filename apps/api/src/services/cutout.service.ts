@@ -85,9 +85,23 @@ async function trimToSubject(png: Buffer): Promise<{ image: Buffer; coverage: nu
   return { image, coverage };
 }
 
+/** User chose the original photo: drop any cutout files and mark SKIPPED (a still-running job will discard its result). */
+export async function skipCutout(imageId: string): Promise<void> {
+  const image = await prisma.clothingImage.findUnique({ where: { id: imageId } });
+  if (!image) return;
+  const root = STORAGE_PATH();
+  for (const p of [image.cutoutPath, image.cutoutThumbPath]) {
+    if (p) await fs.unlink(path.join(root, p)).catch(() => {});
+  }
+  await prisma.clothingImage.update({
+    where: { id: imageId },
+    data: { cutoutStatus: 'SKIPPED', cutoutPath: null, cutoutThumbPath: null, cutoutError: null, cutoutAt: null },
+  });
+}
+
 async function markFailed(imageId: string, reason: string) {
   await prisma.clothingImage
-    .update({ where: { id: imageId }, data: { cutoutStatus: 'FAILED', cutoutError: reason.slice(0, 200) } })
+    .updateMany({ where: { id: imageId, cutoutStatus: 'PENDING' }, data: { cutoutStatus: 'FAILED', cutoutError: reason.slice(0, 200) } })
     .catch(() => {});
 }
 
@@ -101,6 +115,7 @@ export async function runCutout(imageId: string): Promise<void> {
     await queue.run(async () => {
       const image = await prisma.clothingImage.findUnique({ where: { id: imageId } });
       if (!image) return; // deleted while queued
+      if (image.cutoutStatus === 'SKIPPED') return; // user picked the original while it was queued
       await prisma.clothingImage.update({
         where: { id: imageId },
         data: { cutoutStatus: 'PENDING', cutoutError: null },
@@ -135,16 +150,17 @@ export async function runCutout(imageId: string): Promise<void> {
         .webp({ quality: 80, alphaQuality: 100 })
         .toFile(path.join(root, cutoutThumbPath));
 
-      // The row may have been deleted while rembg was running
-      await prisma.clothingImage
-        .update({
-          where: { id: imageId },
+      // The row may have been deleted, or switched to SKIPPED, while rembg was running
+      const written = await prisma.clothingImage
+        .updateMany({
+          where: { id: imageId, cutoutStatus: 'PENDING' },
           data: { cutoutPath, cutoutThumbPath, cutoutStatus: 'DONE', cutoutError: null, cutoutAt: new Date() },
         })
-        .catch(async () => {
-          await fs.unlink(path.join(root, cutoutPath)).catch(() => {});
-          await fs.unlink(path.join(root, cutoutThumbPath)).catch(() => {});
-        });
+        .catch(() => ({ count: 0 }));
+      if (written.count === 0) {
+        await fs.unlink(path.join(root, cutoutPath)).catch(() => {});
+        await fs.unlink(path.join(root, cutoutThumbPath)).catch(() => {});
+      }
     });
   } catch (err: any) {
     const reason = err?.name === 'TimeoutError' ? 'rembg timeout' : err?.message || 'unknown error';

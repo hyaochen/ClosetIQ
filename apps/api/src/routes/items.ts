@@ -1,12 +1,25 @@
 import type { FastifyInstance } from 'fastify';
 import { createClothingItemSchema, updateClothingItemSchema, itemsQuerySchema, laundryBatchSchema, bulkMoveSchema, resolveCurrentSeason } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { deleteClothingImage } from '../services/image.service.js';
 
 /** 確認 storageLocationId 屬於該使用者 */
 async function ownsLocation(userId: string, storageLocationId: string | null | undefined): Promise<boolean> {
   if (!storageLocationId) return true;
   const loc = await prisma.storageLocation.findFirst({ where: { id: storageLocationId, userId }, select: { id: true } });
   return !!loc;
+}
+
+/** ---- P2 ---- Drafts (isActive=false and never decluttered) abandoned for over a day are removed with their files. */
+async function purgeStaleDrafts(userId: string) {
+  const stale = await prisma.clothingItem.findMany({
+    where: { userId, isActive: false, declutteredAt: null, createdAt: { lt: new Date(Date.now() - 24 * 3600_000) } },
+    select: { id: true, images: { select: { id: true } } },
+  });
+  for (const d of stale) {
+    for (const img of d.images) await deleteClothingImage(img.id);
+    await prisma.clothingItem.delete({ where: { id: d.id } });
+  }
 }
 
 export async function itemRoutes(app: FastifyInstance) {
@@ -162,8 +175,10 @@ export async function itemRoutes(app: FastifyInstance) {
     if (!(await ownsLocation(request.user.id, data.storageLocationId))) {
       return reply.status(400).send({ error: '收納位置不存在' });
     }
+    if (data.draft) await purgeStaleDrafts(request.user.id);
     const item = await prisma.clothingItem.create({
       data: {
+        isActive: !data.draft,
         userId: request.user.id,
         name: data.name,
         category: data.category,
@@ -211,7 +226,9 @@ export async function itemRoutes(app: FastifyInstance) {
     if (!(await ownsLocation(request.user.id, data.storageLocationId))) {
       return reply.status(400).send({ error: '收納位置不存在' });
     }
-    const updateData: any = { ...data };
+    const { draft, ...rest } = data;
+    const updateData: any = { ...rest };
+    if (draft === false) updateData.isActive = true; // ---- P2 ---- publish a draft
     if (data.purchaseDate) {
       updateData.purchaseDate = new Date(data.purchaseDate);
     }
@@ -289,6 +306,9 @@ export async function itemRoutes(app: FastifyInstance) {
     }
 
     if (permanent === 'true') {
+      // ---- P2 ---- remove the image files too (the DB cascade only removes rows)
+      const imgs = await prisma.clothingImage.findMany({ where: { clothingItemId: id }, select: { id: true } });
+      for (const img of imgs) await deleteClothingImage(img.id);
       await prisma.clothingItem.delete({ where: { id } });
       return reply.send({ message: '衣物已永久刪除' });
     }

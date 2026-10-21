@@ -65,6 +65,9 @@ export const createClothingItemSchema = z.object({
   tags: z.array(z.string().max(30)).max(10).optional().default([]),
   laundryStatus: laundryStatusEnum.optional(),
   storageLocationId: z.string().uuid().nullable().optional(),
+  // ---- P2 ---- draft=true: created hidden (isActive=false) so the add flow can attach a photo and run the cutout
+  // before the user has filled the form; PUT draft=false publishes it.
+  draft: z.boolean().optional(),
 });
 
 export const updateClothingItemSchema = createClothingItemSchema.partial();

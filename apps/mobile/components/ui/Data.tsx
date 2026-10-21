@@ -3,7 +3,7 @@ import { View, Pressable, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/lib/theme';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, tileImage, type ImageLike } from '@/lib/images';
 import { Txt, Numeral } from './Text';
 
 /** 斜體大數字 + 小標，格間直線分隔，上下 1px 墨線 */
@@ -27,6 +27,7 @@ export function StatRow({ stats }: { stats: { value: string | number; label: str
 /** 衣物縮圖：卡色底 + 圖片 contain；沒有圖時顯示圖示 */
 export function GarmentTile({
   path,
+  image,
   height = 176,
   fill,
   dim,
@@ -34,7 +35,10 @@ export function GarmentTile({
   style,
   fit = 'contain',
 }: {
+  /** 縮圖路徑；若該張圖已去背（資料來自 api()）會自動改用去背圖 */
   path?: string | null;
+  /** 也可直接傳整個 ClothingImage 物件 */
+  image?: ImageLike | null;
   height?: number;
   /** 填滿父容器（flex: 1）而非固定高度 */
   fill?: boolean;
@@ -44,15 +48,20 @@ export function GarmentTile({
   fit?: 'contain' | 'cover';
 }) {
   const c = useColors();
+  // 去背完成：透明圖放在卡色底上（卡色來自 token，深色模式自動換色）；否則用原縮圖
+  const shown = tileImage(path, image);
   return (
     <View style={[fill ? { flex: 1 } : { height }, { backgroundColor: c.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
-      {path ? (
-        <Image
-          source={{ uri: imageUrl(path) }}
-          style={{ width: '100%', height: '100%', opacity: dim ? 0.55 : 1 }}
-          contentFit={fit}
-          accessibilityIgnoresInvertColors
-        />
+      {shown.path ? (
+        // 去背圖是貼著衣物外框裁的，留一點邊距才不會頂到卡片邊
+        <View style={{ width: '100%', height: '100%', padding: shown.cutout ? 8 : 0 }}>
+          <Image
+            source={{ uri: imageUrl(shown.path) }}
+            style={{ width: '100%', height: '100%', opacity: dim ? 0.55 : 1 }}
+            contentFit={shown.cutout ? 'contain' : fit}
+            accessibilityIgnoresInvertColors
+          />
+        </View>
       ) : (
         <Ionicons name="shirt-outline" size={fill ? 32 : Math.min(40, height / 3)} color={c.mute} style={{ opacity: dim ? 0.55 : 1 }} />
       )}

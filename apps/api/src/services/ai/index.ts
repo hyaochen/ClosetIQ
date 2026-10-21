@@ -22,6 +22,19 @@ export function getProvider(): AnalyzeProvider | null {
   return hasKey ? new ClaudeVisionProvider(key!) : new MockProvider();
 }
 
+/**
+ * Frontend-facing availability. enabled=true only when a real provider is configured
+ * (API key present), or AI_PROVIDER=mock was set explicitly (dev/testing).
+ * AI_PROVIDER=auto without a key falls back to mock for the analyze endpoint, but is reported as disabled.
+ */
+export function analyzeStatus(): { enabled: boolean; provider: string } {
+  const mode = (process.env.AI_PROVIDER || 'auto').toLowerCase();
+  const provider = getProvider();
+  if (!provider) return { enabled: false, provider: 'none' };
+  if (provider.name === 'mock' && mode !== 'mock') return { enabled: false, provider: 'none' };
+  return { enabled: true, provider: provider.name };
+}
+
 export const dailyLimit = () => {
   const n = parseInt(process.env.AI_DAILY_LIMIT || '30');
   return Number.isFinite(n) && n >= 0 ? n : 30;

@@ -12,8 +12,9 @@ import {
   ConditionLabel,
 } from '@closet/shared';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, tileImage } from '@/lib/images';
 import { useColors } from '@/lib/theme';
+import { AI_LOW_CONFIDENCE, cleanSuggestedText, type Suggestion } from '@/lib/ai';
 import { useStorageLocations } from '@/lib/queries';
 import { Txt, FieldRow, TextField, ChipGroup, MultiChipGroup, Chip, PickerSheet } from '@/components/ui';
 
@@ -35,6 +36,28 @@ export function useItemForm() {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [notes, setNotes] = useState('');
   const [storageLocationId, setStorageLocationId] = useState<string | null>(null);
+  const [colors, setColors] = useState<string[]>(['#000000']);
+  /** AI 預填但信心低的欄位（虛線框「待確認」）；使用者動過該欄就移出 */
+  const [uncertain, setUncertain] = useState<string[]>([]);
+  const confirm = (key: string) => setUncertain((u) => (u.includes(key) ? u.filter((k) => k !== key) : u));
+
+  /** 套用 AI 建議：只填還空著的欄位，不蓋掉使用者已經打的內容 */
+  const applySuggestion = (s: Suggestion) => {
+    const low: string[] = [];
+    const mark = (key: string, f: { confidence: number } | null) => {
+      if (f && f.confidence < AI_LOW_CONFIDENCE) low.push(key);
+    };
+    if (s.nameSuggestion && !name) { setName(cleanSuggestedText(s.nameSuggestion.value)); mark('name', s.nameSuggestion); }
+    if (s.category && !category) { setCategory(s.category.value); mark('category', s.category); }
+    if (s.subcategory && !subcategory) { setSubcategory(cleanSuggestedText(s.subcategory.value)); mark('subcategory', s.subcategory); }
+    if (s.colorFamily && !colorFamily) { setColorFamily(s.colorFamily.value); mark('colorFamily', s.colorFamily); }
+    if (s.colors) setColors(s.colors.value);
+    if (s.pattern) { setPattern(s.pattern.value); mark('pattern', s.pattern); }
+    if (s.material && materials.length === 0) { setMaterials([cleanSuggestedText(s.material.value)]); mark('material', s.material); }
+    if (s.seasons && seasons.length === 0) { setSeasons(s.seasons.value); mark('seasons', s.seasons); }
+    if (s.occasions && occasions.length === 0) { setOccasions(s.occasions.value); mark('occasions', s.occasions); }
+    setUncertain(low);
+  };
 
   const toggle = (arr: string[], key: string, set: (v: string[]) => void) =>
     set(arr.includes(key) ? arr.filter((k) => k !== key) : [...arr, key]);
@@ -70,7 +93,7 @@ export function useItemForm() {
     name: name.trim(),
     category,
     subcategory: subcategory || undefined,
-    colors: ['#000000'],
+    colors,
     colorFamily,
     pattern,
     seasons,
@@ -89,6 +112,7 @@ export function useItemForm() {
     pattern, setPattern, seasons, setSeasons, occasions, setOccasions, condition, setCondition,
     brand, setBrand, materials, setMaterials, size, setSize, purchasePrice, setPurchasePrice,
     notes, setNotes, storageLocationId, setStorageLocationId, toggle, fill, validate, payload,
+    colors, uncertain, confirm, applySuggestion,
   };
 }
 
@@ -147,7 +171,7 @@ export function PhotoBlock({
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {existing.map((img, i) => (
         <Tile key={img.id} label={`第 ${i + 1} 張照片`} tag={img.isPrimary ? '主圖' : undefined} onRemove={() => onRemoveExisting?.(img.id)}>
-          <Image source={{ uri: imageUrl(img.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
+          <Image source={{ uri: imageUrl(tileImage(img.thumbnailPath).path ?? img.thumbnailPath) }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
         </Tile>
       ))}
       {added.map((img, i) => (
@@ -197,29 +221,30 @@ export function ItemFields({ form }: { form: ItemFormState }) {
   };
 
   const locName = locations.find((l) => l.id === form.storageLocationId)?.name;
+  const low = (key: string) => form.uncertain.includes(key);
 
   return (
     <View>
-      <FieldRow label="名稱 *">
-        <TextField serif value={form.name} onChangeText={form.setName} placeholder="例：白色短袖 T 恤" accessibilityLabel="名稱" />
+      <FieldRow label="名稱 *" low={low('name')}>
+        <TextField serif value={form.name} onChangeText={(v) => { form.confirm('name'); form.setName(v); }} placeholder="例：白色短袖 T 恤" accessibilityLabel="名稱" />
       </FieldRow>
-      <FieldRow label="分類 *" stacked>
-        <ChipGroup items={ClothingCategoryLabel} selected={form.category} onSelect={form.setCategory} />
+      <FieldRow label="分類 *" stacked low={low('category')}>
+        <ChipGroup low={low('category')} items={ClothingCategoryLabel} selected={form.category} onSelect={(k) => { form.confirm('category'); form.setCategory(k); }} />
       </FieldRow>
-      <FieldRow label="細分類">
-        <TextField value={form.subcategory} onChangeText={form.setSubcategory} placeholder="例：Polo 衫、牛仔褲" accessibilityLabel="細分類" />
+      <FieldRow label="細分類" low={low('subcategory')}>
+        <TextField value={form.subcategory} onChangeText={(v) => { form.confirm('subcategory'); form.setSubcategory(v); }} placeholder="例：Polo 衫、牛仔褲" accessibilityLabel="細分類" />
       </FieldRow>
-      <FieldRow label="色系 *" stacked>
-        <ChipGroup items={ColorFamilyLabel} selected={form.colorFamily} onSelect={form.setColorFamily} />
+      <FieldRow label="色系 *" stacked low={low('colorFamily')}>
+        <ChipGroup low={low('colorFamily')} items={ColorFamilyLabel} selected={form.colorFamily} onSelect={(k) => { form.confirm('colorFamily'); form.setColorFamily(k); }} />
       </FieldRow>
-      <FieldRow label="圖案" stacked>
-        <ChipGroup items={PatternLabel} selected={form.pattern} onSelect={form.setPattern} />
+      <FieldRow label="圖案" stacked low={low('pattern')}>
+        <ChipGroup low={low('pattern')} items={PatternLabel} selected={form.pattern} onSelect={(k) => { form.confirm('pattern'); form.setPattern(k); }} />
       </FieldRow>
-      <FieldRow label="季節 *" stacked>
-        <MultiChipGroup items={SeasonLabel} selected={form.seasons} onToggle={(k) => form.toggle(form.seasons, k, form.setSeasons)} />
+      <FieldRow label="季節 *" stacked low={low('seasons')}>
+        <MultiChipGroup low={low('seasons')} items={SeasonLabel} selected={form.seasons} onToggle={(k) => { form.confirm('seasons'); form.toggle(form.seasons, k, form.setSeasons); }} />
       </FieldRow>
-      <FieldRow label="場合 *" stacked>
-        <MultiChipGroup items={OccasionLabel} selected={form.occasions} onToggle={(k) => form.toggle(form.occasions, k, form.setOccasions)} />
+      <FieldRow label="場合 *" stacked low={low('occasions')}>
+        <MultiChipGroup low={low('occasions')} items={OccasionLabel} selected={form.occasions} onToggle={(k) => { form.confirm('occasions'); form.toggle(form.occasions, k, form.setOccasions); }} />
       </FieldRow>
       <FieldRow label="狀況" stacked>
         <ChipGroup items={ConditionLabel} selected={form.condition} onSelect={form.setCondition} />
@@ -267,23 +292,24 @@ export function ItemFields({ form }: { form: ItemFormState }) {
       </FieldRow>
 
       {/* 材質 */}
-      <FieldRow label="材質" stacked>
+      <FieldRow label="材質" stacked low={low('material')}>
         {form.materials.length > 0 ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
             {form.materials.map((m) => (
               <Chip
                 key={m}
                 label={m}
-                selected
-                onPress={() => form.setMaterials(form.materials.filter((x) => x !== m))}
-                trailing={<Ionicons name="close" size={12} color={c.onInk} />}
+                selected={!low('material')}
+                dashed={low('material')}
+                onPress={() => { form.confirm('material'); form.setMaterials(form.materials.filter((x) => x !== m)); }}
+                trailing={<Ionicons name="close" size={12} color={low('material') ? c.accent : c.onInk} />}
               />
             ))}
           </View>
         ) : null}
         <TextField
           value={materialInput}
-          onChangeText={setMaterialInput}
+          onChangeText={(v) => { form.confirm('material'); setMaterialInput(v); }}
           placeholder="輸入材質，按 Enter 加入（例：棉）"
           accessibilityLabel="材質"
           onFocus={() => setMaterialFocused(true)}

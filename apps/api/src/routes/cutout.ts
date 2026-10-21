@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js';
 import {
   cutoutEnabled,
   runCutout,
+  skipCutout,
   startBackfill,
   cancelBackfill,
   getBackfillJob,
@@ -64,6 +65,16 @@ export async function cutoutRoutes(app: FastifyInstance) {
     if (!wait) return reply.status(202).send({ image: { id: imageId, cutoutStatus: 'PENDING' } });
 
     await job;
+    const image = await prisma.clothingImage.findUnique({ where: { id: imageId }, select: imageSelect });
+    return reply.send({ image });
+  });
+
+  // DELETE /api/images/:imageId/cutout - "Use the original photo": drop the cutout, mark SKIPPED
+  app.delete('/api/images/:imageId/cutout', async (request, reply) => {
+    const { imageId } = request.params as { imageId: string };
+    const own = await findOwnImage(imageId, request.user.id);
+    if (!own) return reply.status(404).send({ error: '找不到此圖片' });
+    await skipCutout(imageId);
     const image = await prisma.clothingImage.findUnique({ where: { id: imageId }, select: imageSelect });
     return reply.send({ image });
   });
