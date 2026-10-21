@@ -15,7 +15,8 @@ import {
   type LaundryStatus,
 } from '@closet/shared';
 import { api } from '@/lib/api';
-import { imageUrl } from '@/lib/images';
+import { imageUrl, fullImage } from '@/lib/images';
+import { recutout } from '@/lib/cutout';
 import { queryClient } from '@/lib/query-client';
 import { useColors } from '@/lib/theme';
 import { logWear, setLaundryStatus, localDateString, logDateKey, useEffectiveSeason, itemIsOffSeason } from '@/lib/queries';
@@ -45,8 +46,28 @@ export default function ItemDetailScreen() {
     queryKey: ['items', id],
     queryFn: () => api(`/api/items/${id}`),
     enabled: !!id,
+    // 有照片正在去背（5 分鐘內上傳的）就輪詢，完成後主圖自動換成去背圖
+    refetchInterval: (q) =>
+      ((q.state.data as any)?.item?.images ?? []).some(
+        (i: any) => i.cutoutStatus === 'PENDING' && Date.now() - new Date(i.createdAt).getTime() < 5 * 60_000
+      )
+        ? 1500
+        : false,
   });
   const item = data?.item;
+  const [recutting, setRecutting] = useState(false);
+
+  const handleRecutout = async (imageId: string) => {
+    setRecutting(true);
+    try {
+      await recutout(imageId);
+      await queryClient.invalidateQueries({ queryKey: ['items', id] });
+    } catch (err: any) {
+      showAlert('重新去背失敗', err.message);
+    } finally {
+      setRecutting(false);
+    }
+  };
 
   const pickLaundry = async (status: LaundryStatus) => {
     if (!id) return;
@@ -129,16 +150,22 @@ export default function ItemDetailScreen() {
                 onScroll={(e) => setImgIndex(Math.round(e.nativeEvent.contentOffset.x / colW))}
                 scrollEventThrottle={50}
               >
-                {images.map((img: any) => (
-                  <View key={img.id} style={{ width: colW, height: 292, alignItems: 'center', justifyContent: 'center' }}>
-                    <Image
-                      source={{ uri: imageUrl(img.displayPath) }}
-                      style={{ width: '100%', height: '100%', opacity: off ? 0.8 : 1 }}
-                      contentFit="contain"
-                      accessibilityIgnoresInvertColors
-                    />
-                  </View>
-                ))}
+                {images.map((img: any) => {
+                  // 主圖優先用去背圖（放在卡色底上），否則用顯示版原圖
+                  const shown = fullImage(img);
+                  return (
+                    <View key={img.id} style={{ width: colW, height: 292, alignItems: 'center', justifyContent: 'center' }}>
+                      {shown.path ? (
+                        <Image
+                          source={{ uri: imageUrl(shown.path) }}
+                          style={{ width: '100%', height: '100%', opacity: off ? 0.8 : 1 }}
+                          contentFit="contain"
+                          accessibilityIgnoresInvertColors
+                        />
+                      ) : null}
+                    </View>
+                  );
+                })}
               </ScrollView>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -153,6 +180,26 @@ export default function ItemDetailScreen() {
             {off ? (
               <View style={{ position: 'absolute', left: 12, top: 12 }}>
                 <StatusTag kind="OFF_SEASON" />
+              </View>
+            ) : null}
+            {images[imgIndex] ? (
+              <View style={{ position: 'absolute', left: 14, bottom: 4 }}>
+                {images[imgIndex].cutoutStatus === 'PENDING' ? (
+                  <View style={{ minHeight: 36, justifyContent: 'center' }}>
+                    <Txt size={12} tone="mute">去背處理中</Txt>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => handleRecutout(images[imgIndex].id)}
+                    disabled={recutting}
+                    accessibilityRole="button"
+                    accessibilityLabel="重新去背"
+                    hitSlop={6}
+                    style={{ minHeight: 36, justifyContent: 'center', opacity: recutting ? 0.5 : 1 }}
+                  >
+                    <Txt size={12} style={{ textDecorationLine: 'underline' }}>{images[imgIndex].cutoutStatus === 'DONE' ? '重新去背' : '去背'}</Txt>
+                  </Pressable>
+                )}
               </View>
             ) : null}
           </View>

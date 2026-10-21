@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { registerImages } from './images';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -97,7 +98,9 @@ export async function api<T = any>(
     throw new Error(error.error || `HTTP ${res.status}`);
   }
 
-  return res.json();
+  const json = await res.json();
+  registerImages(json); // P2: let GarmentTile switch to the cutout automatically
+  return json;
 }
 
 // Auth-specific API calls (no token needed)

@@ -6,7 +6,7 @@ import { Txt, Serif } from './Text';
 import { Chip } from './Controls';
 
 /** 欄位列：左灰字標籤、右內容，底部細線（AddItem 稿的欄位列樣式） */
-export function FieldRow({ label, children, stacked }: { label: string; children: ReactNode; stacked?: boolean }) {
+export function FieldRow({ label, children, stacked, low }: { label: string; children: ReactNode; stacked?: boolean; low?: boolean }) {
   const c = useColors();
   return (
     <View
@@ -20,7 +20,10 @@ export function FieldRow({ label, children, stacked }: { label: string; children
         borderBottomColor: c.line,
       }}
     >
-      <Txt size={12} tone="mute" letterSpacing={1.2} style={{ width: stacked ? undefined : 64 }}>{label}</Txt>
+      <View style={{ width: stacked ? undefined : 64, flexDirection: stacked ? 'row' : 'column', alignItems: stacked ? 'baseline' : 'flex-start', gap: stacked ? 8 : 0 }}>
+        <Txt size={12} tone="mute" letterSpacing={1.2}>{label}</Txt>
+        {low ? <Txt size={11} tone="accent" accessibilityLabel="AI 信心較低，待確認">待確認</Txt> : null}
+      </View>
       <View style={{ flex: stacked ? undefined : 1 }}>{children}</View>
     </View>
   );
@@ -56,15 +59,18 @@ export function ChipGroup({
   items,
   selected,
   onSelect,
+  low,
 }: {
   items: Record<string, string>;
   selected: string;
   onSelect: (key: string) => void;
+  /** AI 信心低：已選的晶片改用虛線框（待確認），點任一晶片即視為確認 */
+  low?: boolean;
 }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
       {Object.entries(items).map(([key, label]) => (
-        <Chip key={key} label={label} selected={selected === key} onPress={() => onSelect(key)} />
+        <Chip key={key} label={label} selected={selected === key && !low} dashed={low && selected === key} onPress={() => onSelect(key)} />
       ))}
     </View>
   );
@@ -75,15 +81,17 @@ export function MultiChipGroup({
   items,
   selected,
   onToggle,
+  low,
 }: {
   items: Record<string, string>;
   selected: string[];
   onToggle: (key: string) => void;
+  low?: boolean;
 }) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
       {Object.entries(items).map(([key, label]) => (
-        <Chip key={key} label={label} selected={selected.includes(key)} onPress={() => onToggle(key)} />
+        <Chip key={key} label={label} selected={selected.includes(key) && !low} dashed={low && selected.includes(key)} onPress={() => onToggle(key)} />
       ))}
     </View>
   );

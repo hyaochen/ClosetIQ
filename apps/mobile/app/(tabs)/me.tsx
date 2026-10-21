@@ -11,6 +11,7 @@ import { showAlert, showConfirm } from '@/lib/alert';
 import {
   useMe, useStorageLocations, useLaundry, updateSettings, invalidateWardrobe,
 } from '@/lib/queries';
+import { useBackfill } from '@/lib/cutout';
 import {
   Screen, PageHeader, SectionHeader, Hairline, Txt, Serif, Numeral, Button, Segmented, ListRow, BarMeter, PickerSheet,
 } from '@/components/ui';
@@ -26,6 +27,7 @@ export default function MeScreen() {
   const { data: me } = useMe();
   const { data: locData } = useStorageLocations();
   const { data: laundry } = useLaundry();
+  const { data: backfill } = useBackfill(); // P2：還沒去背的照片張數
   const [moveSheet, setMoveSheet] = useState(false);
   const [moving, setMoving] = useState(false);
 
@@ -175,6 +177,13 @@ export default function MeScreen() {
       <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.ink }}>
         <ListRow index="01" onPress={() => router.push('/analytics')} left={<Txt size={14}>統計分析</Txt>} right={<Txt size={12} tone="mute">每次成本、品牌</Txt>} />
         <ListRow index="02" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
+        {backfill?.enabled ? (
+          <ListRow
+            onPress={() => router.push('/tidy-photos')}
+            left={<Txt size={14}>整理舊照片</Txt>}
+            right={<Txt size={12} tone="mute">{backfill.job?.running ? '整理中' : backfill.remaining > 0 ? `${backfill.remaining} 張未去背` : '都已去背'}</Txt>}
+          />
+        ) : null}
         <ListRow index="03" onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
         <ListRow
           index="04"
