@@ -29,6 +29,7 @@ import { recapRoutes } from './routes/recap.js';
 // ---- P2 ----
 import { cutoutRoutes } from './routes/cutout.js';
 import { analyzeRoutes } from './routes/analyze.js';
+import { outfitCanvasRoutes } from './routes/outfit-canvas.js'; // ---- P4 ----
 
 const app = Fastify({
   logger: {
@@ -82,6 +83,7 @@ async function start() {
   // ---- P2 ----
   await app.register(cutoutRoutes);
   await app.register(analyzeRoutes);
+  await app.register(outfitCanvasRoutes); // ---- P4 ----
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
