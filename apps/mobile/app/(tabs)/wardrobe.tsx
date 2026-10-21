@@ -1,14 +1,17 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, ScrollView, Pressable, FlatList, ActivityIndicator, useWindowDimensions, TextInput } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ClothingCategoryLabel, costPerWear } from '@closet/shared';
 import { api } from '@/lib/api';
 import { useColors, fonts } from '@/lib/theme';
 import { useEffectiveSeason, itemIsOffSeason, useStorageLocations } from '@/lib/queries';
+import { useWishlist } from '@/lib/wishlist';
+import { WardrobeSegment } from '@/components/wishlist/parts';
+import { WishlistPane } from '@/components/wishlist/WishlistPane';
 import {
-  Txt, Serif, Numeral, Chip, StatusTag, GarmentTile, Button, PickerSheet, Hairline, IconButton,
+  Txt, Serif, Numeral, Chip, StatusTag, GarmentTile, Button, PickerSheet, IconButton,
 } from '@/components/ui';
 
 const PAGE_SIZE = 50;
@@ -30,6 +33,13 @@ const SORTS = [
 export default function WardrobeScreen() {
   const c = useColors();
   const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [mode, setMode] = useState<'items' | 'wishlist'>(params.tab === 'wishlist' ? 'wishlist' : 'items');
+  useEffect(() => {
+    if (params.tab === 'wishlist') setMode('wishlist');
+  }, [params.tab]);
+  const { data: wishData } = useWishlist();
+  const wishCount = (wishData ?? []).filter((w) => w.status === 'WANT').length;
   const season = useEffectiveSeason();
   const { data: locData } = useStorageLocations();
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -110,7 +120,7 @@ export default function WardrobeScreen() {
             />
           </View>
         ) : null}
-        <Hairline tone="ink" style={{ marginTop: searchOpen ? 0 : 8 }} />
+        <WardrobeSegment mode={mode} wishCount={wishCount} onChange={setMode} />
 
         {/* 分類文字分頁 */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingTop: 4 }}>
@@ -149,10 +159,13 @@ export default function WardrobeScreen() {
         <View style={{ height: 6 }} />
       </View>
     ),
-    [total, searchOpen, searchText, category, cleanOnly, inSeasonOnly, locationId, locationName, sortDef.label, c]
+    [total, searchOpen, searchText, category, cleanOnly, inSeasonOnly, locationId, locationName, sortDef.label, c, mode, wishCount]
   );
 
   const fabRight = Math.max(20, (width - maxWidth) / 2 + 20);
+
+  // P6：願望清單分段（其餘 hooks 都已呼叫完，這裡才切換畫面）
+  if (mode === 'wishlist') return <WishlistPane onSwitch={setMode} />;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
