@@ -1,5 +1,6 @@
-import { resolveCurrentSeason, isOutOfSeason } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { todayTaipei } from './weather.service.js';
+import { seasonsForDates, outOfAllSeasons } from './season-dates.js';
 
 // ---- P5 ----
 // 從 routes/suggestions.ts 抽出的推薦評分邏輯（公式與原本完全相同），供推薦、自動排週計畫、旅行打包共用。
@@ -7,16 +8,19 @@ import { prisma } from '../lib/prisma.js';
 export interface ScoreOptions {
   targetSeasons: string[];
   occasion?: string;
+  /** 目標日期（YYYY-MM-DD）。季外篩選依這些日期的季節（聯集）；沒給就用今天 */
+  forDates?: string[];
 }
 
 /** 載入使用者所有啟用中衣物並評分（含主圖與穿著統計） */
 export async function loadScoredItems(userId: string, opts: ScoreOptions) {
-  const { targetSeasons, occasion } = opts;
+  const { targetSeasons, occasion, forDates } = opts;
 
   // 與 P1 的推薦規則一致：只取乾淨衣物（排除待洗 / 送洗中），季外衣物在下方排除。
   // 這裡是推薦、自動排週計畫、旅行打包共用的入口，所以三者都套同樣規則。
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { currentSeason: true } });
-  const currentSeason = resolveCurrentSeason(me?.currentSeason);
+  // 季外篩選依目標日期推算季節（今天才吃「目前季節」設定），跨季的行程取聯集
+  const filterSeasons = seasonsForDates(forDates, me?.currentSeason, todayTaipei());
 
   const allItems = await prisma.clothingItem.findMany({
     where: { userId, isActive: true, laundryStatus: 'CLEAN' },
@@ -31,7 +35,7 @@ export async function loadScoredItems(userId: string, opts: ScoreOptions) {
     },
   });
 
-  const items = allItems.filter((i) => !isOutOfSeason(i.seasons, currentSeason));
+  const items = allItems.filter((i) => !outOfAllSeasons(i.seasons, filterSeasons));
 
   return items.map((item) => {
     let score = 0;

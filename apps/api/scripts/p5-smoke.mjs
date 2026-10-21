@@ -32,9 +32,9 @@ ok(r.status === 200 && r.json.available && r.json.days.length === 16 && r.json.h
 ok(r.json.days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.date) && typeof d.min === 'number' && typeof d.max === 'number' && d.rainChance >= 0), '預報欄位', r.json.days[0]);
 ok(r.json.days[0].date === today, '第一天是台北今天');
 ok(r.json.days.some((d) => d.condition === 'RAINY' && d.rainChance >= 80), '有雨天且降雨機率 80');
-const count1 = (await (await fetch('http://127.0.0.1:3016/__count')).json()).calls;
+const count1 = (await (await fetch(`http://127.0.0.1:${process.env.MOCK_PORT || 3016}/__count`)).json()).calls;
 await api('GET', '/api/weather/forecast?lat=25.04&lon=121.58', A); // 四捨五入到同一格 -> 吃快取
-const count2 = (await (await fetch('http://127.0.0.1:3016/__count')).json()).calls;
+const count2 = (await (await fetch(`http://127.0.0.1:${process.env.MOCK_PORT || 3016}/__count`)).json()).calls;
 ok(count1 === count2, '同座標(0.1 度)第二次吃快取', { count1, count2 });
 r = await api('GET', '/api/weather/forecast?city=Tokyo', A);
 ok(r.status === 200 && r.json.location === 'Tokyo', 'city 查詢', r.json);
@@ -212,6 +212,39 @@ r = await api('GET', '/api/trips', A);
 ok(r.json.trips.length === 2 && r.json.trips[0].itemCount !== undefined, 'GET trips 列表含 itemCount');
 r = await api('DELETE', `/api/trips/${longId}`, A);
 ok(r.status === 200, '刪旅行');
+
+// ---- 依目標日期推算季節（行程在另一個季節時，不用「目前季節」篩衣物）----
+{
+  const C = await account('季節丙' + suffix);
+  const SEASONS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
+  const seasonOfMonth = (m) => (m >= 3 && m <= 5 ? 'SPRING' : m >= 6 && m <= 8 ? 'SUMMER' : m >= 9 && m <= 11 ? 'AUTUMN' : 'WINTER');
+  const todaySeason = seasonOfMonth(parseInt(today.slice(5, 7), 10));
+  const farStart = plus(120), farEnd = plus(122); // 超過預報窗口，走「出發月份」季節
+  const targetSeason = seasonOfMonth(parseInt(farStart.slice(5, 7), 10));
+  const opposite = SEASONS[(SEASONS.indexOf(targetSeason) + 2) % 4];
+  const names = {};
+  const defs = [];
+  for (const sea of SEASONS) {
+    for (const cat of ['TOP', 'BOTTOM', 'OUTERWEAR']) {
+      const nm = `${sea}限定${cat}`;
+      names[nm] = sea;
+      defs.push({ name: nm, category: cat, seasons: [sea] });
+    }
+  }
+  const idsC = await seedItems(C, defs);
+  const idToName = Object.fromEntries(Object.entries(idsC).map(([n, id]) => [id, n]));
+  r = await api('POST', '/api/trips', C, { name: '遠行', destination: 'Tokyo', startDate: farStart, endDate: farEnd });
+  const farId = r.json.trip.id;
+  r = await api('POST', `/api/trips/${farId}/generate`, C);
+  const picked = r.json.items.filter((i) => i.clothingItemId).map((i) => names[idToName[i.clothingItemId]]);
+  ok(picked.includes(targetSeason), `出發月份 ${farStart.slice(5, 7)} 的旅行會選到 ${targetSeason} 季衣物`, picked);
+  ok(!picked.includes(opposite), `不會選到對季 ${opposite} 的衣物`, picked);
+  if (targetSeason !== todaySeason) ok(!picked.includes(todaySeason), `目前季節 ${todaySeason} 的衣物不會被誤選`, picked);
+  // 自動排程：計畫日在遠期，同樣依該日季節
+  r = await api('POST', `/api/plans/auto?from=${plus(14)}&to=${plus(14)}`, C);
+  ok(r.status === 201, '自動排遠期日子成功', r.json);
+  await api('DELETE', `/api/trips/${farId}`, C);
+}
 
 console.log(fail === 0 ? '\nALL PASS' : `\n${fail} FAILED`);
 process.exit(fail ? 1 : 0);
