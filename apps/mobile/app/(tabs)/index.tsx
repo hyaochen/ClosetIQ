@@ -74,15 +74,16 @@ export default function TodayScreen() {
     }
   };
 
+  // 沒有定位時用台北座標，刊頭才一定看得到天氣（Open-Meteo 沒有反向地名，所以不顯示城市名）
+  const place = coords ?? { lat: 25.03, lon: 121.56 };
+
   const { data, isLoading } = useQuery<{ suggestions: Suggestion[]; weather: { temp: number; condition: string } | null }>({
-    queryKey: ['suggestions', coords?.lat ?? null, coords?.lon ?? null, occasion ?? null],
+    queryKey: ['suggestions', place.lat, place.lon, occasion ?? null],
     queryFn: () => {
       const params = new URLSearchParams();
       if (occasion) params.set('occasion', occasion);
-      if (coords) {
-        params.set('lat', String(coords.lat));
-        params.set('lon', String(coords.lon));
-      }
+      params.set('lat', String(place.lat));
+      params.set('lon', String(place.lon));
       return api(`/api/suggestions/outfit?${params.toString()}`);
     },
     staleTime: 1000 * 60 * 5,

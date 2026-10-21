@@ -175,15 +175,9 @@ export default function MeScreen() {
       <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.ink }}>
         <ListRow index="01" onPress={() => router.push('/analytics')} left={<Txt size={14}>統計分析</Txt>} right={<Txt size={12} tone="mute">每次成本、品牌</Txt>} />
         <ListRow index="02" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
+        <ListRow index="03" onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
         <ListRow
-          index="03"
-          onPress={() => showAlert('備份與還原', '這個功能還在準備中，之後的版本會開放。')}
-          left={<Txt size={14}>備份與還原</Txt>}
-          right={<Txt size={12} tone="mute">準備中</Txt>}
-        />
-        <ListRow index="04" onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
-        <ListRow
-          index="05"
+          index="04"
           chevron={false}
           left={<Txt size={14}>穿後自動標記待洗</Txt>}
           right={
@@ -199,7 +193,7 @@ export default function MeScreen() {
           }
           minHeight={56}
         />
-        <ListRow index="06" onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
+        <ListRow index="05" onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
       </View>
 
       <PickerSheet
