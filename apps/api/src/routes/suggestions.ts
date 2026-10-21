@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { suggestOutfitSchema, temperatureToSeason, resolveCurrentSeason, isOutOfSeason } from '@closet/shared';
-import { prisma } from '../lib/prisma.js';
+import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
+import { loadScoredItems } from '../services/scoring.service.js';
 
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 
@@ -56,62 +56,8 @@ export async function suggestionRoutes(app: FastifyInstance) {
     // Determine target seasons
     const targetSeasons = weather ? temperatureToSeason(weather.temp) : [];
 
-    // Get all active items
-    const me = await prisma.user.findUnique({ where: { id: userId }, select: { currentSeason: true } });
-    const currentSeason = resolveCurrentSeason(me?.currentSeason);
-
-    // 只取乾淨的衣物（排除待洗 / 送洗中）；季外衣物在下方過濾
-    const allItems = await prisma.clothingItem.findMany({
-      where: { userId, isActive: true, laundryStatus: 'CLEAN' },
-      include: {
-        images: { where: { isPrimary: true }, take: 1 },
-        _count: { select: { wearLogItems: true } },
-        wearLogItems: {
-          orderBy: { wearLog: { date: 'desc' } },
-          take: 1,
-          include: { wearLog: { select: { date: true } } },
-        },
-      },
-    });
-
-    const items = allItems.filter((i) => !isOutOfSeason(i.seasons, currentSeason));
-
-    // Score each item
-    const scored = items.map((item) => {
-      let score = 0;
-      const lastWorn = item.wearLogItems[0]?.wearLog.date ?? null;
-      const wearCount = item._count.wearLogItems;
-
-      // Season match
-      if (targetSeasons.length > 0) {
-        const seasonMatch = item.seasons.some((s) => targetSeasons.includes(s));
-        if (seasonMatch) score += 10;
-        else score -= 20; // Strong penalty for wrong season
-      }
-
-      // Occasion match
-      if (occasion && item.occasions.includes(occasion)) {
-        score += 8;
-      }
-
-      // Prefer less worn items
-      if (wearCount === 0) score += 5;
-      else score -= wearCount * 0.3;
-
-      // Prefer items not recently worn
-      if (lastWorn) {
-        const daysSince = (Date.now() - lastWorn.getTime()) / (1000 * 60 * 60 * 24);
-        score += Math.min(daysSince * 0.2, 5);
-      } else {
-        score += 3; // Never worn bonus
-      }
-
-      // Condition bonus
-      if (item.condition === 'NEW') score += 2;
-      if (item.condition === 'GOOD') score += 1;
-
-      return { ...item, score };
-    });
+    // Get all active items and score each one (shared with plans/trips)
+    const scored = await loadScoredItems(userId, { targetSeasons, occasion });
 
     // Helper: pick a candidate with randomness that increases by attempt index
     const pickCandidate = (candidates: typeof scored, attempt: number) => {

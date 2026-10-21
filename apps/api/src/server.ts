@@ -22,6 +22,7 @@ import { storageLocationRoutes } from './routes/storage-locations.js';
 // ---- P6 ----
 import { wishlistRoutes } from './routes/wishlist.js';
 import { wardrobeGapRoutes } from './routes/wardrobe-gaps.js';
+import { p5Routes } from './routes/p5.js'; // P5
 
 const app = Fastify({
   logger: {
@@ -68,6 +69,7 @@ async function start() {
   // ---- P6 ----
   await app.register(wishlistRoutes);
   await app.register(wardrobeGapRoutes);
+  await app.register(p5Routes); // P5
 
   // Health check
   app.get('/api/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

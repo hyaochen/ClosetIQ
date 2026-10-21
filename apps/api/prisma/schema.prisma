@@ -21,6 +21,8 @@ model User {
   wearLogs     WearLog[]
   storageLocations StorageLocation[]
   wishlistItems WishlistItem[]
+  plannedOutfits PlannedOutfit[] // P5
+  trips          Trip[]          // P5
 }
 
 model StorageLocation {
@@ -69,6 +71,8 @@ model ClothingItem {
   images       ClothingImage[]
   outfitItems  OutfitItem[]
   wearLogItems WearLogItem[]
+  plannedOutfitItems PlannedOutfitItem[] // P5
+  tripItems          TripItem[]          // P5
 
   @@index([userId])
   @@index([userId, category])
@@ -104,6 +108,7 @@ model Outfit {
 
   items    OutfitItem[]
   wearLogs WearLog[]
+  plannedOutfits PlannedOutfit[] // P5
 
   @@index([userId])
 }
@@ -177,4 +182,70 @@ model WishlistItem {
 
   @@index([userId])
   @@index([userId, status])
+}
+// ---- P5 ----
+// 規則：同一使用者同一天只有一筆計畫（PUT 為整筆取代）
+
+model PlannedOutfit {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  outfitId  String?
+  outfit    Outfit?  @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+  note      String?
+  createdAt DateTime @default(now())
+
+  items PlannedOutfitItem[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model PlannedOutfitItem {
+  id              String        @id @default(uuid())
+  plannedOutfitId String
+  plannedOutfit   PlannedOutfit @relation(fields: [plannedOutfitId], references: [id], onDelete: Cascade)
+  clothingItemId  String
+  clothingItem    ClothingItem  @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+
+  @@unique([plannedOutfitId, clothingItemId])
+  @@index([plannedOutfitId])
+  @@index([clothingItemId])
+}
+
+model Trip {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  destination String
+  lat         Float?
+  lon         Float?
+  startDate   DateTime   @db.Date
+  endDate     DateTime   @db.Date
+  createdAt   DateTime   @default(now())
+
+  items TripItem[]
+
+  @@index([userId])
+  @@index([userId, startDate])
+}
+
+model TripItem {
+  id             String        @id @default(uuid())
+  tripId         String
+  trip           Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  clothingItemId String?
+  clothingItem   ClothingItem? @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  customName     String?       // 非衣物項目，例如雨傘
+  category       String?
+  quantity       Int           @default(1)
+  packed         Boolean       @default(false)
+  reason         String?
+  isAuto         Boolean       @default(false) // true = generate 產生；重新產生時未勾選的 isAuto 項目會被取代
+  sortOrder      Int           @default(0)
+
+  @@index([tripId])
+  @@index([clothingItemId])
 }
