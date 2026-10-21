@@ -13,6 +13,7 @@ import {
   refundQuota,
   recordTokens,
   dailyLimit,
+  analyzeStatus,
 } from '../services/ai/index.js';
 
 const STORAGE_PATH = () => process.env.IMAGE_STORAGE_PATH || './data/images';
@@ -20,6 +21,9 @@ const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 export async function analyzeRoutes(app: FastifyInstance) {
   app.addHook('onRequest', app.authenticate);
+
+  // GET /api/items/analyze/status - the frontend only looks at this to decide whether to show the AI block
+  app.get('/api/items/analyze/status', async (_request, reply) => reply.send(analyzeStatus()));
 
   // Input (one of):
   //   multipart/form-data with a "file" field (photo taken but not yet saved as an item image)
