@@ -310,6 +310,7 @@ export async function wishlistRoutes(app: FastifyInstance) {
         category: s.category,
         subcategory: s.subcategory,
         colorFamily: s.colorFamily,
+        matchType: s.matchType,
         thumbnail: thumbs.get(s.id) ?? null,
         recentWearCount: s.recentWearCount,
         totalWearCount: s.totalWearCount,

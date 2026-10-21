@@ -216,6 +216,7 @@ export interface WishlistSimilarItem {
   category: ClothingCategory;
   subcategory: string | null;
   colorFamily: ColorFamily;
+  matchType: 'COLOR' | 'SUBCATEGORY'; // COLOR=同類別同色系(強)；SUBCATEGORY=同款式不同色(弱)
   thumbnail: string | null;
   recentWearCount: number; // 近 90 天
   totalWearCount: number;

@@ -22,7 +22,7 @@ export interface AnalysisResult {
   compatibleCount: number;
   totalConsidered: number;
   byCategory: CategoryCompat[];
-  similarItems: WardrobeItem[];
+  similarItems: SimilarItem[];
   score: number;
   reasons: string[];
   filledGaps: Gap[];
@@ -43,20 +43,34 @@ export const SCORE = {
   underusedRecentMax: 1,
 } as const;
 
-export function isSimilar(c: CandidateItem, w: WardrobeItem): boolean {
-  if (c.category !== w.category) return false;
-  if (c.colorFamily === w.colorFamily) return true;
-  return !!c.subcategory && !!w.subcategory && c.subcategory === w.subcategory;
+export type MatchType = 'COLOR' | 'SUBCATEGORY';
+
+// 同類別 + 同色系 = 強相似(COLOR)；同類別 + 同 subcategory 但不同色 = 弱相似(SUBCATEGORY)
+export function similarityOf(c: CandidateItem, w: WardrobeItem): MatchType | null {
+  if (c.category !== w.category) return null;
+  if (c.colorFamily === w.colorFamily) return 'COLOR';
+  if (c.subcategory && w.subcategory && c.subcategory === w.subcategory) return 'SUBCATEGORY';
+  return null;
 }
+
+export type SimilarItem = WardrobeItem & { matchType: MatchType };
 
 export function analyzeCandidate(
   candidate: CandidateItem,
   wardrobe: readonly WardrobeItem[]
 ): AnalysisResult {
   const compat = summarizeCompatibility(candidate, wardrobe);
-  const similarItems = wardrobe
-    .filter((w) => isSimilar(candidate, w))
-    .sort((a, b) => b.totalWearCount - a.totalWearCount);
+  const similarItems: SimilarItem[] = [];
+  for (const w of wardrobe) {
+    const m = similarityOf(candidate, w);
+    if (m) similarItems.push({ ...w, matchType: m });
+  }
+  // 強相似在前，再依總穿著次數
+  similarItems.sort(
+    (a, b) =>
+      (a.matchType === b.matchType ? 0 : a.matchType === 'COLOR' ? -1 : 1) ||
+      b.totalWearCount - a.totalWearCount
+  );
 
   const reasons: string[] = [];
   let score: number = SCORE.base;
@@ -86,30 +100,37 @@ export function analyzeCandidate(
     reasons.push(`衣櫃裡同類別只有 ${sameCategory} 件`);
   }
 
-  // 4. 相似單品扣分（越多、越少穿扣越多）
+  // 4. 相似單品扣分（越多、越少穿扣越多；弱相似只算一半）
+  const strong = similarItems.filter((x) => x.matchType === 'COLOR');
+  const weak = similarItems.filter((x) => x.matchType === 'SUBCATEGORY');
   if (similarItems.length > 0) {
     let penalty = 0;
-    let underused = 0;
     for (const s of similarItems) {
-      penalty += SCORE.similarBase;
-      if (s.recentWearCount <= SCORE.underusedRecentMax) {
-        penalty += SCORE.similarUnderused;
-        underused++;
-      }
+      const factor = s.matchType === 'COLOR' ? 1 : 0.5;
+      let p = SCORE.similarBase;
+      if (s.recentWearCount <= SCORE.underusedRecentMax) p += SCORE.similarUnderused;
+      penalty += p * factor;
     }
     score -= Math.min(SCORE.similarPenaltyMax, penalty);
-    if (underused === similarItems.length) {
-      const wears = similarItems.map((s) => s.recentWearCount);
-      const allSame = wears.every((n) => n === wears[0]);
-      reasons.push(
-        allSame
-          ? `已有 ${similarItems.length} 件相似且近 90 天各只穿 ${wears[0]} 次`
-          : `已有 ${similarItems.length} 件相似且近 90 天都很少穿`
-      );
-    } else if (underused > 0) {
-      reasons.push(`已有 ${similarItems.length} 件相似，其中 ${underused} 件近 90 天很少穿`);
-    } else {
-      reasons.push(`已有 ${similarItems.length} 件相似單品，但都常穿`);
+
+    if (strong.length > 0) {
+      const underused = strong.filter((s) => s.recentWearCount <= SCORE.underusedRecentMax);
+      if (underused.length === strong.length) {
+        const wears = strong.map((s) => s.recentWearCount);
+        const allSame = wears.every((n) => n === wears[0]);
+        reasons.push(
+          allSame
+            ? `已有 ${strong.length} 件相似且近 90 天各只穿 ${wears[0]} 次`
+            : `已有 ${strong.length} 件相似且近 90 天都很少穿`
+        );
+      } else if (underused.length > 0) {
+        reasons.push(`已有 ${strong.length} 件相似，其中 ${underused.length} 件近 90 天很少穿`);
+      } else {
+        reasons.push(`已有 ${strong.length} 件相似單品，但都常穿`);
+      }
+    }
+    if (weak.length > 0) {
+      reasons.push(`另有 ${weak.length} 件同款式但不同色`);
     }
   }
 
