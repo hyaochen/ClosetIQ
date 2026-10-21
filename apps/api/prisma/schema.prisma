@@ -79,6 +79,10 @@ model Outfit {
   notes     String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  // ---- P4 ----
+  canvasLayout   Json?
+  coverPath      String?
+  coverThumbPath String?
 
   items    OutfitItem[]
   wearLogs WearLog[]

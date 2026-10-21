@@ -123,3 +123,78 @@ export type UpdateOutfitInput = z.infer<typeof updateOutfitSchema>;
 export type CreateWearLogInput = z.infer<typeof createWearLogSchema>;
 export type ItemsQuery = z.infer<typeof itemsQuerySchema>;
 export type SuggestOutfitInput = z.infer<typeof suggestOutfitSchema>;
+
+// ---- P4 ----
+// ============ Outfit Canvas (collage) ============
+
+export const CANVAS_LAYOUT_VERSION = 1 as const;
+
+// Cover render output size (4:5 portrait) and thumbnail size
+export const CANVAS_COVER_WIDTH = 1080;
+export const CANVAS_COVER_HEIGHT = 1350;
+export const CANVAS_THUMB_WIDTH = 360;
+export const CANVAS_THUMB_HEIGHT = 450;
+
+export const CanvasBackground = {
+  card: 'card',
+  white: 'white',
+  clay: 'clay',
+} as const;
+export type CanvasBackground = (typeof CanvasBackground)[keyof typeof CanvasBackground];
+
+export const CanvasBackgroundHex: Record<CanvasBackground, string> = {
+  card: '#E9E2D4',
+  white: '#FFFFFF',
+  clay: '#D9C3B0',
+};
+
+const canvasBackgroundEnum = z.nativeEnum(CanvasBackground);
+
+// All geometry is relative so the layout is resolution independent:
+// - x, y: piece CENTER as a fraction of canvas width / height (0 = left/top, 1 = right/bottom)
+// - scale: piece box side as a fraction of canvas WIDTH; the image is fitted (contain) inside a scale*W square
+// - rotate: degrees, clockwise (same as CSS rotate)
+// - z: stacking order, larger = on top
+// - flipX: mirror horizontally (applied before rotation)
+export const canvasPieceSchema = z.object({
+  itemId: z.string().uuid(),
+  imageId: z.string().uuid(),
+  x: z.number().min(-0.5).max(1.5),
+  y: z.number().min(-0.5).max(1.5),
+  scale: z.number().min(0.05).max(2),
+  rotate: z.number().min(-360).max(360).default(0),
+  z: z.number().int().min(0).max(999).default(0),
+  flipX: z.boolean().default(false),
+});
+
+export const canvasLayoutSchema = z
+  .object({
+    v: z.literal(CANVAS_LAYOUT_VERSION),
+    background: canvasBackgroundEnum.default('card'),
+    // Size of the editing canvas in logical px (only its aspect ratio matters to the renderer)
+    width: z.number().min(100).max(4000),
+    height: z.number().min(100).max(4000),
+    pieces: z.array(canvasPieceSchema).max(30),
+  })
+  .refine((l) => new Set(l.pieces.map((p) => p.itemId)).size === l.pieces.length, {
+    message: '同一件衣物在畫布上只能出現一次',
+    path: ['pieces'],
+  });
+
+export const saveCanvasSchema = z.object({
+  layout: canvasLayoutSchema,
+  // true: make the outfit's item list equal to the placed pieces (adds missing, removes unplaced)
+  syncItems: z.boolean().optional().default(false),
+  // true: also render the cover image in the same call
+  render: z.boolean().optional().default(false),
+});
+
+export const autoCanvasSchema = z.object({
+  background: canvasBackgroundEnum.optional(),
+  render: z.boolean().optional().default(false),
+});
+
+export type CanvasPiece = z.infer<typeof canvasPieceSchema>;
+export type CanvasLayout = z.infer<typeof canvasLayoutSchema>;
+export type SaveCanvasInput = z.infer<typeof saveCanvasSchema>;
+export type AutoCanvasInput = z.infer<typeof autoCanvasSchema>;
