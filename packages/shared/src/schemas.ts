@@ -587,8 +587,8 @@ export const saveCanvasSchema = z.object({
   layout: canvasLayoutSchema,
   // true: make the outfit's item list equal to the placed pieces (adds missing, removes unplaced)
   syncItems: z.boolean().optional().default(false),
-  // true: also render the cover image in the same call
-  render: z.boolean().optional().default(false),
+  // default true: saving the layout also renders the cover image (owner decision, integration branch)
+  render: z.boolean().optional().default(true),
 });
 
 export const autoCanvasSchema = z.object({

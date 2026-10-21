@@ -18,17 +18,19 @@ const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 
 interface ImageLike {
   displayPath: string;
-  // P2 adds a background-removed image path; until that branch is merged this field does not exist
+  // P2: background-removed image (transparent webp) and its processing state
   cutoutPath?: string | null;
+  cutoutStatus?: string | null;
 }
 
 /**
  * Which stored file a canvas piece should be drawn from.
- * Prefers the background-removed image (cutoutPath, added by P2) and falls back to displayPath.
- * This is the single place to change after P2 is merged.
+ * Prefers the background-removed image (P2 cutoutPath) only when cutoutStatus is DONE,
+ * otherwise falls back to displayPath (a half-written or failed cutout must never be drawn).
  */
 export function resolvePieceImagePath(image: ImageLike): string {
-  return image.cutoutPath || image.displayPath;
+  if (image.cutoutStatus === 'DONE' && image.cutoutPath) return image.cutoutPath;
+  return image.displayPath;
 }
 
 // ---- compositing ----

@@ -264,6 +264,8 @@ model TripItem {
 
   @@index([tripId])
   @@index([clothingItemId])
+}
+
 // ---- P2 ----
 // Per-user per-day AI analyze usage counter (day = Asia/Taipei calendar date, YYYY-MM-DD)
 model AiUsage {
