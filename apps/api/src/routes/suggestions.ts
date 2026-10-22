@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { tileFields } from '../lib/tile.js';
 import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
 import { loadScoredItems } from '../services/scoring.service.js';
+import { resolveCoords } from '../lib/home-location.js';
 import { getCurrentWeather } from '../services/weather.service.js';
 
 interface WeatherData {
@@ -19,8 +20,11 @@ export async function suggestionRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: '參數錯誤', details: parsed.error.flatten() });
     }
 
-    const { occasion, lat, lon } = parsed.data;
+    const { occasion } = parsed.data;
     const userId = request.user.id;
+    const coords = await resolveCoords(userId, parsed.data.lat, parsed.data.lon); // 沒帶座標時用常用城市
+    const lat = coords?.lat;
+    const lon = coords?.lon;
 
     // Fetch weather if location provided
     let weather: WeatherData | null = null;

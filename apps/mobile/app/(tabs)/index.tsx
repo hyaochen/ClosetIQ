@@ -64,8 +64,10 @@ export default function TodayScreen() {
     }
   };
 
-  // 沒有定位時用台北座標，刊頭才一定看得到天氣（Open-Meteo 沒有反向地名，所以不顯示城市名）
-  const place = coords ?? { lat: 25.03, lon: 121.56 };
+  // 座標優先序：目前定位 -> 常用城市 -> 台北。Open-Meteo 沒有反向地名，所以只有用常用城市時才顯示城市名
+  const home = me && me.homeLat !== null && me.homeLon !== null ? { lat: me.homeLat, lon: me.homeLon } : null;
+  const place = coords ?? home ?? { lat: 25.03, lon: 121.56 };
+  const cityName = !coords && home ? me?.homeCity ?? null : null;
 
   const { data, isLoading } = useQuery<{ suggestions: Suggestion[]; weather: { temp: number; condition: string } | null }>({
     queryKey: ['suggestions', place.lat, place.lon, occasion ?? null],
@@ -77,6 +79,7 @@ export default function TodayScreen() {
       return api(`/api/suggestions/outfit?${params.toString()}`);
     },
     staleTime: 1000 * 60 * 5,
+    enabled: !!me, // 等常用城市載入，避免先用台北查一輪
   });
 
   const suggestions = data?.suggestions ?? [];
@@ -113,7 +116,7 @@ export default function TodayScreen() {
 
   const dateLabel = `${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${WEEK_EN[now.getDay()]}`;
   const weatherText = weather
-    ? `${weather.temp}° ${WeatherConditionLabel[weather.condition as keyof typeof WeatherConditionLabel] ?? ''}`
+    ? `${cityName ? `${cityName} ` : ''}${weather.temp}° ${WeatherConditionLabel[weather.condition as keyof typeof WeatherConditionLabel] ?? ''}`
     : null;
   const names = current ? current.items.map((i) => i.name).join(' · ') : '';
   const advice =
@@ -166,7 +169,7 @@ export default function TodayScreen() {
       </ScrollView>
 
       {/* 推薦大圖 */}
-      {isLoading ? (
+      {isLoading || !me ? (
         <View style={{ height: 262, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={c.ink} />
         </View>

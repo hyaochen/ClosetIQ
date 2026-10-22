@@ -132,7 +132,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/me', { onRequest: [app.authenticate] }, async (request, reply) => {
     const user = await prisma.user.findUnique({
       where: { id: request.user.id },
-      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true },
+      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true, homeCity: true, homeLat: true, homeLon: true },
     });
 
     if (!user) {
@@ -151,7 +151,7 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await prisma.user.update({
       where: { id: request.user.id },
       data: parsed.data,
-      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true },
+      select: { id: true, email: true, displayName: true, createdAt: true, currentSeason: true, autoDirtyOnWear: true, homeCity: true, homeLat: true, homeLon: true },
     });
     return reply.send({ user: { ...user, effectiveSeason: resolveCurrentSeason(user.currentSeason) } });
   });
