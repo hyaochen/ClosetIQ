@@ -1,37 +1,62 @@
 // ---- P2 ---- AI analyze service: provider selection, sanitising, daily quota
 import sharp from 'sharp';
-import { z } from 'zod';
 import { itemSuggestionSchema, ClothingCategory, ColorFamily, Pattern, Season, Occasion } from '@closet/shared';
 import type { ItemSuggestion } from '@closet/shared';
 import { prisma } from '../../lib/prisma.js';
 import type { AnalyzeProvider } from './types.js';
 import { MockProvider } from './mock.provider.js';
 import { ClaudeVisionProvider, estimateCostUsd } from './claude.provider.js';
+import { SubscriptionBridgeProvider, pingBridgeCached } from './bridge.provider.js';
 
 export { estimateCostUsd };
 
 const MAX_EDGE = 1024;
 
-/** AI_PROVIDER=auto (default): claude when ANTHROPIC_API_KEY is set, otherwise mock. */
+/**
+ * AI_PROVIDER = bridge | claude | mock | auto (default).
+ *  - bridge: the account holder's Claude subscription via the host claude-bridge (CLAUDE_BRIDGE_TOKEN required)
+ *  - claude: Anthropic API key
+ *  - auto:   claude when ANTHROPIC_API_KEY is set, else bridge when CLAUDE_BRIDGE_TOKEN is set, else mock (reported disabled)
+ */
+const hasApiKey = () => {
+  const key = process.env.ANTHROPIC_API_KEY;
+  return !!key && !key.includes('your-key-here');
+};
+const hasBridgeToken = () => !!process.env.CLAUDE_BRIDGE_TOKEN && process.env.CLAUDE_BRIDGE_TOKEN.length >= 16;
+
 export function getProvider(): AnalyzeProvider | null {
   const mode = (process.env.AI_PROVIDER || 'auto').toLowerCase();
-  const key = process.env.ANTHROPIC_API_KEY;
-  const hasKey = !!key && !key.includes('your-key-here');
   if (mode === 'mock') return new MockProvider();
-  if (mode === 'claude') return hasKey ? new ClaudeVisionProvider(key!) : null;
-  return hasKey ? new ClaudeVisionProvider(key!) : new MockProvider();
+  if (mode === 'claude') return hasApiKey() ? new ClaudeVisionProvider(process.env.ANTHROPIC_API_KEY!) : null;
+  if (mode === 'bridge') return hasBridgeToken() ? new SubscriptionBridgeProvider() : null;
+  if (hasApiKey()) return new ClaudeVisionProvider(process.env.ANTHROPIC_API_KEY!);
+  if (hasBridgeToken()) return new SubscriptionBridgeProvider();
+  return new MockProvider();
 }
 
 /**
- * Frontend-facing availability. enabled=true only when a real provider is configured
- * (API key present), or AI_PROVIDER=mock was set explicitly (dev/testing).
- * AI_PROVIDER=auto without a key falls back to mock for the analyze endpoint, but is reported as disabled.
+ * The subscription belongs to the account holder only (Anthropic ToS): bridge results are only
+ * available to ClosetIQ user ids listed in AI_ALLOWED_USER_IDS (comma separated; empty = nobody).
+ * API-key (claude) and mock providers are not restricted by this list.
  */
-export function analyzeStatus(): { enabled: boolean; provider: string } {
+export function isUserAllowed(provider: AnalyzeProvider, userId: string): boolean {
+  if (provider.name !== 'bridge') return true;
+  const ids = (process.env.AI_ALLOWED_USER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return ids.includes(userId);
+}
+
+/**
+ * Frontend-facing availability. enabled=true only when a real provider is configured (and for
+ * bridge: the user is allowed AND the bridge answers a ping, cached 60 s), or
+ * AI_PROVIDER=mock was set explicitly. AI_PROVIDER=auto with nothing configured is disabled.
+ */
+export async function analyzeStatus(userId: string): Promise<{ enabled: boolean; provider: string }> {
   const mode = (process.env.AI_PROVIDER || 'auto').toLowerCase();
   const provider = getProvider();
   if (!provider) return { enabled: false, provider: 'none' };
   if (provider.name === 'mock' && mode !== 'mock') return { enabled: false, provider: 'none' };
+  if (!isUserAllowed(provider, userId)) return { enabled: false, provider: 'none' };
+  if (provider.name === 'bridge' && !(await pingBridgeCached())) return { enabled: false, provider: 'none' };
   return { enabled: true, provider: provider.name };
 }
 
@@ -50,23 +75,33 @@ export async function prepareImage(input: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-const wrap = z.object({ value: z.unknown(), confidence: z.unknown() });
-
 function clamp01(x: unknown): number {
   const n = typeof x === 'number' ? x : Number(x);
   return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0;
 }
 
 /**
+ * Rule-based fallback confidence for fields where the provider gave a bare value or no usable
+ * confidence: clear-cut enums 0.6, free text and lists 0.5, material 0.35 (a photo rarely shows it).
+ * Low values make the UI mark the field as "to confirm".
+ */
+const DEFAULT_CONFIDENCE: Record<string, number> = { category: 0.6, colorFamily: 0.6, pattern: 0.6, material: 0.35 };
+const defaultConfidence = (key: string) => DEFAULT_CONFIDENCE[key] ?? 0.5;
+
+/**
  * Validate one provider field. Anything outside the shared enums / formats is dropped
  * (array fields keep their valid elements; the whole field becomes null if none remain).
+ * Accepts {value, confidence}, {value} (confidence by rule) or a bare value (confidence by rule).
  */
 function pickField<T>(raw: Record<string, unknown>, key: string, validate: (v: unknown) => T | null) {
-  const w = wrap.safeParse(raw[key]);
-  if (!w.success) return null;
-  const value = validate(w.data.value);
+  const field = raw[key];
+  if (field === null || field === undefined) return null;
+  const isWrapped = typeof field === 'object' && !Array.isArray(field) && 'value' in (field as object);
+  const value = validate(isWrapped ? (field as { value: unknown }).value : field);
   if (value === null) return null;
-  return { value, confidence: Math.round(clamp01(w.data.confidence) * 100) / 100 };
+  const given = isWrapped ? (field as { confidence?: unknown }).confidence : undefined;
+  const hasGiven = given !== undefined && given !== null && Number.isFinite(typeof given === 'number' ? given : Number(given));
+  return { value, confidence: hasGiven ? Math.round(clamp01(given) * 100) / 100 : defaultConfidence(key) };
 }
 
 const oneOf = (allowed: readonly string[]) => (v: unknown) =>

@@ -13,7 +13,7 @@ export interface ProviderResult {
 }
 
 export interface AnalyzeProvider {
-  readonly name: 'claude' | 'mock';
+  readonly name: 'claude' | 'bridge' | 'mock';
   readonly model: string;
   /** imageJpeg: already resized to a long edge <= 1024 */
   analyze(imageJpeg: Buffer): Promise<ProviderResult>;

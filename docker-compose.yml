@@ -37,8 +37,17 @@ services:
       REMBG_MODEL: ${REMBG_MODEL:-isnet-general-use}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5-5}
       AI_DAILY_LIMIT: ${AI_DAILY_LIMIT:-30}
-    # ---- P2 ---- ANTHROPIC_API_KEY lives only in ./.env.ai (gitignored). Optional: without it
-    # /api/items/analyze answers with the mock provider.
+      # ---- T-CL-017 ---- bridge = the account holder's Claude subscription through the host
+      # claude-bridge (tools/claude-bridge, listens on host 127.0.0.1:8765 only). Non-secret defaults:
+      AI_PROVIDER: ${AI_PROVIDER:-auto}
+      CLAUDE_BRIDGE_URL: ${CLAUDE_BRIDGE_URL:-http://host.docker.internal:8765}
+    # Reaches the host from the container (Docker Desktop also resolves it natively; this makes Linux hosts work too).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # ---- P2 / T-CL-017 ---- Secrets live only in ./.env.ai (gitignored): ANTHROPIC_API_KEY,
+    # CLAUDE_BRIDGE_TOKEN (written by tools/claude-bridge/setup-token.mjs) and
+    # AI_ALLOWED_USER_IDS (comma separated ClosetIQ user ids allowed to use the subscription bridge;
+    # empty = nobody). Without any of them /api/items/analyze is disabled (the add flow hides the AI step).
     env_file:
       - path: ./.env.ai
         required: false
