@@ -2,13 +2,16 @@
 // 今天算第 0 天：第 2 天下雨（WMO 63、降雨機率 80）、第 3 天降溫（11-13 度）、第 4 天雲量代碼 2 且風大（觸發 WINDY）。
 import http from 'node:http';
 let calls = 0;
+let last = null; // 最近一次 /v1/forecast 收到的座標（followups-smoke 用）
 const ymd = (ms) => new Date(ms + 8 * 3600e3).toISOString().slice(0, 10);
 const srv = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   res.setHeader('content-type', 'application/json');
   if (u.pathname === '/__count') return res.end(JSON.stringify({ calls }));
+  if (u.pathname === '/__last') return res.end(JSON.stringify(last));
   if (u.pathname === '/v1/forecast') {
     calls++;
+    last = { lat: Number(u.searchParams.get('latitude')), lon: Number(u.searchParams.get('longitude')) };
     if (u.searchParams.get('mode') === 'error') { res.statusCode = 500; return res.end('{}'); }
     const n = Number(u.searchParams.get('forecast_days') || 7);
     const time = [], code = [], tmax = [], tmin = [], pop = [], wind = [];
