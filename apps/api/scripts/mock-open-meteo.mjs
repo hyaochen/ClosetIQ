@@ -31,6 +31,7 @@ const srv = http.createServer((req, res) => {
   if (u.pathname === '/v1/search') {
     const name = u.searchParams.get('name') || '';
     if (/^nowhere/i.test(name)) return res.end('{"generationtime_ms":0.1}');
+    if (/台中|taichung/i.test(name)) return res.end(JSON.stringify({ results: [{ name: 'Taichung', latitude: 24.15, longitude: 120.67, timezone: 'Asia/Taipei' }] }));
     return res.end(JSON.stringify({ results: [{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, timezone: 'Asia/Tokyo' }] }));
   }
   res.statusCode = 404; res.end('{}');
