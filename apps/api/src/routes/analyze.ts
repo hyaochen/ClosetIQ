@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { analyzeByImageIdSchema } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { storagePath } from '../lib/storage.js';
 import {
   getProvider,
   prepareImage,
@@ -57,7 +58,7 @@ export async function analyzeRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: '找不到此圖片' });
       }
       try {
-        source = await fs.readFile(path.join(STORAGE_PATH(), image.originalPath));
+        source = await fs.readFile(path.join(storagePath(), image.originalPath));
       } catch {
         return reply.status(404).send({ error: '圖片檔案不存在' });
       }
