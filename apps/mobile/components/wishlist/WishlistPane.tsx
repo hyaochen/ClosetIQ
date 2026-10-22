@@ -6,7 +6,7 @@ import { ClothingCategoryLabel, type WishlistStatus } from '@closet/shared';
 import { useColors, MIN_TOUCH } from '@/lib/theme';
 import { Txt, Serif, Numeral, Chip, GarmentTile, Button } from '@/components/ui';
 import {
-  useWishlist, useWishlistScores, useWardrobeGaps, WISHLIST_STATUS_LABEL, formatPrice, formatMonthDay, scoreVerdict,
+  useWishlist, useWardrobeGaps, WISHLIST_STATUS_LABEL, formatPrice, formatMonthDay, scoreVerdict,
   type WishlistItem,
 } from '@/lib/wishlist';
 import { WardrobeSegment, GapList } from './parts';
@@ -28,7 +28,6 @@ export function WishlistPane({ onSwitch }: { onSwitch: (m: 'items' | 'wishlist')
     return m;
   }, [all]);
   const shown = all.filter((w) => w.status === status);
-  const scores = useWishlistScores(status === 'WANT' ? shown.map((w) => w.id) : []);
 
   const maxWidth = 560;
   const fabRight = Math.max(20, (width - maxWidth) / 2 + 20);
@@ -99,7 +98,7 @@ export function WishlistPane({ onSwitch }: { onSwitch: (m: 'items' | 'wishlist')
           ListEmptyComponent={empty}
           contentContainerStyle={{ paddingBottom: 110 }}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => <WishRow item={item} score={scores[item.id]} />}
+          renderItem={({ item }) => <WishRow item={item} score={item.score ?? undefined} />}
         />
       </View>
       <Pressable
