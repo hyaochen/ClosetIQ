@@ -8,6 +8,7 @@ import { useColors, MIN_TOUCH } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { useTrip, invalidateTrips, dotMd, parseYmd, type TripItem } from '@/lib/plan-queries';
 import { TopBar, Screen, Txt, Serif, Numeral, Eyebrow, Button, BarMeter, TextField, Chip } from '@/components/ui';
+import { ItemPicker } from '@/components/journal/ItemPicker';
 import { CATEGORY_SHORT, PACK_CATEGORY_ORDER } from '@/components/plan/shared';
 import { tripLengthLabel } from '@/components/plan/PackTab';
 
@@ -22,6 +23,8 @@ export default function TripDetailScreen() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [custom, setCustom] = useState('');
   const [adding, setAdding] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [pickBusy, setPickBusy] = useState(false);
 
   const trip = data?.trip;
   const items = data?.items ?? [];
@@ -96,6 +99,32 @@ export default function TripDetailScreen() {
     }
   };
 
+  // 從衣櫃加入：多選衣物格；清單裡已有的不重複加入
+  const inListIds = items.map((i) => i.clothingItemId).filter((x): x is string => !!x);
+  const addFromCloset = async (ids: string[]) => {
+    const fresh = ids.filter((x) => !inListIds.includes(x));
+    if (fresh.length === 0) {
+      setPicker(false);
+      return;
+    }
+    setPickBusy(true);
+    try {
+      let failed = 0;
+      for (const clothingItemId of fresh) {
+        try {
+          await api(`/api/trips/${id}/items`, { method: 'POST', body: JSON.stringify({ clothingItemId, reason: '手動加入' }) });
+        } catch {
+          failed += 1;
+        }
+      }
+      refresh();
+      setPicker(false);
+      if (failed > 0) showAlert('部分加入失敗', `${failed} 件沒有加進去，請再試一次`);
+    } finally {
+      setPickBusy(false);
+    }
+  };
+
   const deleteTrip = async () => {
     const yes = await showConfirm('刪除旅行', `確定刪除「${trip?.name}」與它的打包清單？`);
     if (!yes) return;
@@ -127,9 +156,14 @@ export default function TripDetailScreen() {
         eyebrow="TRIP"
         title={trip?.name}
         right={
-          <Pressable onPress={deleteTrip} accessibilityRole="button" accessibilityLabel="刪除旅行" style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="trash-outline" size={20} color={c.ink} />
-          </Pressable>
+          <View style={{ flexDirection: 'row' }}>
+            <Pressable onPress={() => router.push({ pathname: '/trip/edit', params: { id } })} accessibilityRole="button" accessibilityLabel="編輯旅行" style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="create-outline" size={20} color={c.ink} />
+            </Pressable>
+            <Pressable onPress={deleteTrip} accessibilityRole="button" accessibilityLabel="刪除旅行" style={{ width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="trash-outline" size={20} color={c.ink} />
+            </Pressable>
+          </View>
         }
         onBack={() => router.replace({ pathname: '/(tabs)/outfits', params: { seg: 'pack' } })}
       />
@@ -185,6 +219,11 @@ export default function TripDetailScreen() {
             </View>
           ) : null}
 
+          {/* 從衣櫃加入 */}
+          <View style={{ marginTop: 22 }}>
+            <Button label="從衣櫃加入" variant="outline" icon="shirt-outline" onPress={() => setPicker(true)} />
+          </View>
+
           {/* 自訂項目 */}
           <View style={{ marginTop: 22 }}>
             <Eyebrow>加自訂項目</Eyebrow>
@@ -224,6 +263,15 @@ export default function TripDetailScreen() {
           ) : null}
         </Screen>
       )}
+      <ItemPicker
+        visible={picker}
+        initial={inListIds}
+        title="從衣櫃加入"
+        confirmLabel="加入打包清單"
+        busy={pickBusy}
+        onConfirm={addFromCloset}
+        onClose={() => setPicker(false)}
+      />
     </View>
   );
 }

@@ -4,8 +4,8 @@ import sharp from 'sharp';
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { cutoutEnabled, enqueueCutout } from './cutout.service.js'; // ---- P2 ----
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -25,7 +25,7 @@ export interface ProcessImageOptions {
 export async function ensureImageDirs(userId: string, subdir?: string) {
   const dirs = ['original', 'display', 'thumbnail'];
   for (const dir of dirs) {
-    await fs.mkdir(path.join(STORAGE_PATH, userId, ...(subdir ? [subdir] : []), dir), { recursive: true });
+    await fs.mkdir(path.join(storagePath(), userId, ...(subdir ? [subdir] : []), dir), { recursive: true });
   }
 }
 
@@ -33,7 +33,7 @@ export async function deleteImageFiles(paths: Array<string | null | undefined>) 
   for (const filePath of paths) {
     if (!filePath) continue;
     try {
-      await fs.unlink(path.join(STORAGE_PATH, filePath));
+      await fs.unlink(path.join(storagePath(), filePath));
     } catch {
       // File may not exist, ignore
     }
@@ -68,7 +68,7 @@ export async function processAndSaveImage(
   await sharp(buffer)
     .rotate() // Auto-rotate based on EXIF
     .webp({ quality: 90 })
-    .toFile(path.join(STORAGE_PATH, originalPath));
+    .toFile(path.join(storagePath(), originalPath));
 
   // Generate display version (max 800px)
   const displayFilename = `${id}-display${ext}`;
@@ -77,7 +77,7 @@ export async function processAndSaveImage(
     .rotate()
     .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
     .webp({ quality: 80 })
-    .toFile(path.join(STORAGE_PATH, displayPath));
+    .toFile(path.join(storagePath(), displayPath));
 
   // Generate thumbnail (300px square, cover crop)
   const thumbnailFilename = `${id}-thumbnail${ext}`;
@@ -86,7 +86,7 @@ export async function processAndSaveImage(
     .rotate()
     .resize(thumbW, thumbH, { fit: 'cover' })
     .webp({ quality: 75 })
-    .toFile(path.join(STORAGE_PATH, thumbnailPath));
+    .toFile(path.join(storagePath(), thumbnailPath));
 
   // Normalize to forward slashes for cross-platform compatibility
   return {
@@ -141,7 +141,7 @@ export async function deleteClothingImage(imageId: string) {
   if (image.cutoutThumbPath) filePaths.push(image.cutoutThumbPath);
   for (const filePath of filePaths) {
     try {
-      await fs.unlink(path.join(STORAGE_PATH, filePath));
+      await fs.unlink(path.join(storagePath(), filePath));
     } catch {
       // File may not exist, ignore
     }

@@ -1,6 +1,7 @@
 // 購前分析：相似單品與評分。純函式。
 import {
   summarizeCompatibility,
+  categoriesComplementary,
   type CompatInput,
   type CategoryCompat,
 } from './compatibility.js';
@@ -83,6 +84,12 @@ export function analyzeCandidate(
     if (compat.compatibleCount === 0) reasons.push('目前衣櫃裡沒有能和它搭的衣物');
   } else {
     reasons.push('衣櫃裡還沒有可搭配的衣物');
+  }
+
+  // 1b. 圖案：兩件都不是素色就不搭（compatibility 規則），所以有花紋的候選會少掉衣櫃裡有花紋的互補單品
+  if (compat.totalConsidered > 0 && candidate.pattern && candidate.pattern !== 'SOLID') {
+    const loud = wardrobe.filter((w) => categoriesComplementary(candidate.category, w.category) && w.pattern && w.pattern !== 'SOLID').length;
+    if (loud > 0) reasons.push(`有花紋，不和衣櫃裡 ${loud} 件有花紋的單品同穿`);
   }
 
   // 2. 補缺口

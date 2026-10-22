@@ -146,7 +146,20 @@ export const updateSettingsSchema = z.object({
   currentSeason: seasonEnum.nullable().optional(),
   autoDirtyOnWear: z.boolean().optional(),
   displayName: z.string().trim().min(1).max(50).optional(),
-});
+  // 常用城市（T-CL-018）：三者一起設或一起清；城市名稱由 app 從 geocoding 結果帶入
+  homeCity: z.string().trim().min(1).max(100).nullable().optional(),
+  homeLat: z.number().min(-90).max(90).nullable().optional(),
+  homeLon: z.number().min(-180).max(180).nullable().optional(),
+}).refine(
+  (v) => {
+    const set = [v.homeCity, v.homeLat, v.homeLon].filter((x) => x !== undefined);
+    if (set.length === 0) return true;
+    if (set.length !== 3) return false;
+    const nulls = [v.homeCity, v.homeLat, v.homeLon].filter((x) => x === null).length;
+    return nulls === 0 || nulls === 3;
+  },
+  { message: '常用城市需同時提供名稱與座標，或同時清除' }
+);
 
 // ============ Type exports ============
 

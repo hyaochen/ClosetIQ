@@ -16,6 +16,9 @@ model User {
   updatedAt    DateTime       @updatedAt
   currentSeason    String?        // SPRING/SUMMER/AUTUMN/WINTER；null = 依台灣月份自動
   autoDirtyOnWear  Boolean        @default(true)
+  homeCity         String?        // 常用城市（T-CL-018）
+  homeLat          Float?
+  homeLon          Float?
   items        ClothingItem[]
   outfits      Outfit[]
   wearLogs     WearLog[]
