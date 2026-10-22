@@ -4,7 +4,7 @@ import * as Location from 'expo-location';
 import type { ForecastDay } from '@closet/shared';
 import { api } from './api';
 import { queryClient } from './query-client';
-import { localDateString } from './queries';
+import { localDateString, useMe } from './queries';
 import type { TileLike } from './images';
 
 // ---- P5：穿搭計畫與旅行打包 ----
@@ -56,19 +56,22 @@ export type TripDetail = {
 /** 沒有定位權限時用台北（Open-Meteo 不需金鑰，所以一定有預報） */
 export const DEFAULT_PLACE = { lat: 25.03, lon: 121.56 };
 
-/** 已授權時用目前位置，否則台北；不主動跳權限詢問 */
+/** 已授權時用目前位置，否則常用城市，再否則台北；不主動跳權限詢問 */
 export function usePlace() {
-  const [place, setPlace] = useState(DEFAULT_PLACE);
+  const { data: me } = useMe();
+  const home = me && me.homeLat !== null && me.homeLon !== null ? { lat: me.homeLat, lon: me.homeLon } : null;
+  const [geo, setGeo] = useState<{ lat: number; lon: number } | null>(null);
+  const place = geo ?? home ?? DEFAULT_PLACE;
   useEffect(() => {
     (async () => {
       try {
         const p = await Location.getForegroundPermissionsAsync();
         if (p.granted) {
           const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
-          setPlace({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+          setGeo({ lat: pos.coords.latitude, lon: pos.coords.longitude });
         }
       } catch {
-        /* 保持台北 */
+        /* 沿用常用城市或台北 */
       }
     })();
   }, []);

@@ -8,7 +8,7 @@ import { OccasionLabel, WeatherConditionLabel, SeasonLabel } from '@closet/share
 import { api } from '@/lib/api';
 import { useColors } from '@/lib/theme';
 import { useLaundry, useMe, logWear, localDateString } from '@/lib/queries';
-import { usePlanWeek, parseYmd } from '@/lib/plan-queries';
+import { usePlanWeek, usePlanRange, wearPlan, parseYmd } from '@/lib/plan-queries';
 import { showAlert } from '@/lib/alert';
 import {
   Screen, Txt, Serif, Numeral, Eyebrow, Hairline, SectionHeader, Button, Chip, GarmentTile,
@@ -18,7 +18,7 @@ import type { TileLike } from '@/lib/images';
 const WEEK_EN = ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.'];
 
 type SuggestionItem = TileLike & { id: string; name: string; category: string; thumbnail: string | null };
-type Suggestion = { items: SuggestionItem[]; score: number };
+type Suggestion = { items: SuggestionItem[]; score: number; isPlan?: boolean };
 
 function pad(n: number) {
   return String(n).padStart(2, '0');
@@ -82,7 +82,13 @@ export default function TodayScreen() {
     enabled: !!me, // 等常用城市載入，避免先用台北查一輪
   });
 
-  const suggestions = data?.suggestions ?? [];
+  // 今天若有排計畫，第一張固定是「今天的計畫」，「換一套」再往後輪替一般推薦
+  const { data: todayPlanData, isLoading: planLoading } = usePlanRange(todayKey, todayKey, place);
+  const todayPlan = todayPlanData?.days?.[0]?.plan ?? null;
+  const suggestions: Suggestion[] = [
+    ...(todayPlan && todayPlan.items.length > 0 ? [{ items: todayPlan.items, score: 0, isPlan: true }] : []),
+    ...(data?.suggestions ?? []),
+  ];
   const weather = data?.weather ?? null;
   const total = suggestions.length;
   const current = suggestions[total ? index % total : 0];
@@ -101,11 +107,19 @@ export default function TodayScreen() {
     if (!current || saving) return;
     setSaving(true);
     try {
-      await logWear({
-        itemIds: current.items.map((i) => i.id),
-        occasion,
-        weatherTemp: weather?.temp,
-      });
+      if (current.isPlan) {
+        try {
+          await wearPlan(todayKey); // 計畫走既有的 /api/plans/:date/wear
+        } catch (err: any) {
+          if (!/已經記錄/.test(err?.message ?? '')) throw err; // 409：這套今天已記錄過，視為已穿
+        }
+      } else {
+        await logWear({
+          itemIds: current.items.map((i) => i.id),
+          occasion,
+          weatherTemp: weather?.temp,
+        });
+      }
       setWornSig(sig);
     } catch (err: any) {
       showAlert('記錄失敗', err.message);
@@ -169,7 +183,7 @@ export default function TodayScreen() {
       </ScrollView>
 
       {/* 推薦大圖 */}
-      {isLoading || !me ? (
+      {isLoading || planLoading || !me ? (
         <View style={{ height: 262, backgroundColor: c.card, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={c.ink} />
         </View>
@@ -194,7 +208,7 @@ export default function TodayScreen() {
             ))}
             <View style={{ position: 'absolute', left: 12, bottom: 10, backgroundColor: c.paper, paddingHorizontal: 8, paddingVertical: 4 }}>
               <Txt size={11} letterSpacing={1.8} style={{ lineHeight: 16 }}>
-                {occasion ? OccasionLabel[occasion as keyof typeof OccasionLabel] : '日常'}
+                {current.isPlan ? '今天的計畫' : occasion ? OccasionLabel[occasion as keyof typeof OccasionLabel] : '日常'}
                 {me ? `・${SeasonLabel[me.effectiveSeason as keyof typeof SeasonLabel]}季` : ''}
               </Txt>
             </View>
