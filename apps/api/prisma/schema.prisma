@@ -14,9 +14,29 @@ model User {
   passwordHash String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  currentSeason    String?        // SPRING/SUMMER/AUTUMN/WINTER；null = 依台灣月份自動
+  autoDirtyOnWear  Boolean        @default(true)
   items        ClothingItem[]
   outfits      Outfit[]
   wearLogs     WearLog[]
+  storageLocations StorageLocation[]
+  wishlistItems WishlistItem[]
+  plannedOutfits PlannedOutfit[] // P5
+  trips          Trip[]          // P5
+  aiUsages     AiUsage[] // ---- P2 ----
+}
+
+model StorageLocation {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  sortOrder   Int            @default(0)
+  isOffSeason Boolean        @default(false) // 換季收納處
+  createdAt   DateTime       @default(now())
+  items       ClothingItem[]
+
+  @@index([userId])
 }
 
 model ClothingItem {
@@ -43,16 +63,23 @@ model ClothingItem {
   isActive         Boolean         @default(true)
   declutterReason  String?         // DONATED, SOLD, DISCARDED, GIFTED
   declutteredAt    DateTime?
+  laundryStatus    String          @default("CLEAN") // CLEAN, DIRTY, CLEANING
+  storageLocationId String?
+  storageLocation  StorageLocation? @relation(fields: [storageLocationId], references: [id], onDelete: SetNull)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
   images       ClothingImage[]
   outfitItems  OutfitItem[]
   wearLogItems WearLogItem[]
+  plannedOutfitItems PlannedOutfitItem[] // P5
+  tripItems          TripItem[]          // P5
 
   @@index([userId])
   @@index([userId, category])
   @@index([userId, isActive])
+  @@index([userId, laundryStatus])
+  @@index([storageLocationId])
 }
 
 model ClothingImage {
@@ -64,6 +91,12 @@ model ClothingImage {
   thumbnailPath  String
   isPrimary      Boolean      @default(false)
   createdAt      DateTime     @default(now())
+  // ---- P2 ---- (cutout fields, additive: nullable / defaulted)
+  cutoutPath      String?
+  cutoutThumbPath String?
+  cutoutStatus    String    @default("NONE") // NONE, PENDING, DONE, FAILED
+  cutoutError     String?
+  cutoutAt        DateTime?
 
   @@index([clothingItemId])
 }
@@ -79,9 +112,14 @@ model Outfit {
   notes     String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  // ---- P4 ----
+  canvasLayout   Json?
+  coverPath      String?
+  coverThumbPath String?
 
   items    OutfitItem[]
   wearLogs WearLog[]
+  plannedOutfits PlannedOutfit[] // P5
 
   @@index([userId])
 }
@@ -110,6 +148,11 @@ model WearLog {
   weatherCondition String?
   notes            String?
   createdAt        DateTime      @default(now())
+  // ---- P3: OOTD photo (one full-body photo per wear log, all nullable) ----
+  photoOriginalPath  String?
+  photoDisplayPath   String?
+  photoThumbnailPath String?
+  photoUpdatedAt     DateTime?
 
   items WearLogItem[]
 
@@ -127,4 +170,113 @@ model WearLogItem {
   @@unique([wearLogId, clothingItemId])
   @@index([wearLogId])
   @@index([clothingItemId])
+}
+
+// ---- P6 ----
+model WishlistItem {
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String
+  category           String
+  subcategory        String?
+  colorFamily        String
+  colors             String[]
+  pattern            String?
+  seasons            String[]
+  occasions          String[]
+  price              Decimal? @db.Decimal(10, 2)
+  url                String?
+  note               String?
+  status             String   @default("WANT") // WANT, BOUGHT, DROPPED
+  imageOriginalPath  String?
+  imageDisplayPath   String?
+  imageThumbnailPath String?
+  boughtItemId       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+}
+// ---- P5 ----
+// 規則：同一使用者同一天只有一筆計畫（PUT 為整筆取代）
+
+model PlannedOutfit {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  outfitId  String?
+  outfit    Outfit?  @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+  note      String?
+  createdAt DateTime @default(now())
+
+  items PlannedOutfitItem[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model PlannedOutfitItem {
+  id              String        @id @default(uuid())
+  plannedOutfitId String
+  plannedOutfit   PlannedOutfit @relation(fields: [plannedOutfitId], references: [id], onDelete: Cascade)
+  clothingItemId  String
+  clothingItem    ClothingItem  @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+
+  @@unique([plannedOutfitId, clothingItemId])
+  @@index([plannedOutfitId])
+  @@index([clothingItemId])
+}
+
+model Trip {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  destination String
+  lat         Float?
+  lon         Float?
+  startDate   DateTime   @db.Date
+  endDate     DateTime   @db.Date
+  createdAt   DateTime   @default(now())
+
+  items TripItem[]
+
+  @@index([userId])
+  @@index([userId, startDate])
+}
+
+model TripItem {
+  id             String        @id @default(uuid())
+  tripId         String
+  trip           Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  clothingItemId String?
+  clothingItem   ClothingItem? @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  customName     String?       // 非衣物項目，例如雨傘
+  category       String?
+  quantity       Int           @default(1)
+  packed         Boolean       @default(false)
+  reason         String?
+  isAuto         Boolean       @default(false) // true = generate 產生；重新產生時未勾選的 isAuto 項目會被取代
+  sortOrder      Int           @default(0)
+
+  @@index([tripId])
+  @@index([clothingItemId])
+}
+
+// ---- P2 ----
+// Per-user per-day AI analyze usage counter (day = Asia/Taipei calendar date, YYYY-MM-DD)
+model AiUsage {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day          String
+  count        Int      @default(0)
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, day])
 }

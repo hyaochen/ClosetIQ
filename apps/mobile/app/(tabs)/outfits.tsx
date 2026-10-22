@@ -1,106 +1,77 @@
-import { View, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, Pressable } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { api } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useColors } from '@/lib/theme';
+import { Screen, PageHeader, Txt } from '@/components/ui';
+import { LooksTab } from '@/components/plan/LooksTab';
+import { PlanTab } from '@/components/plan/PlanTab';
+import { PackTab } from '@/components/plan/PackTab';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
+type Seg = 'look' | 'plan' | 'pack';
+const SEGS: { key: Seg; label: string }[] = [
+  { key: 'look', label: '作品集' },
+  { key: 'plan', label: '計畫' },
+  { key: 'pack', label: '打包' },
+];
 
+/** 穿搭：作品集 / 計畫 / 打包（?seg=plan 可直接開到某一段） */
 export default function OutfitsScreen() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['outfits'],
-    queryFn: () => api('/api/outfits'),
-  });
+  const c = useColors();
+  const params = useLocalSearchParams<{ seg?: string }>();
+  const [seg, setSeg] = useState<Seg>('look');
 
-  const outfits = data?.outfits ?? [];
+  useEffect(() => {
+    if (params.seg === 'plan' || params.seg === 'pack' || params.seg === 'look') setSeg(params.seg);
+  }, [params.seg]);
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-gray-950">
-      {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#4c6ef5" />
-        </View>
-      ) : outfits.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-8">
-          <Ionicons name="layers-outline" size={64} color="#d1d5db" />
-          <Text className="text-gray-400 text-lg mt-4 text-center">
-            還沒有建立穿搭組合
-          </Text>
+    <Screen maxWidth={560}>
+      <PageHeader
+        title="穿搭"
+        right={
           <Pressable
-            className="bg-primary-600 rounded-xl px-6 py-3 mt-6 active:bg-primary-700"
             onPress={() => router.push('/outfit/builder')}
+            accessibilityRole="button"
+            accessibilityLabel="新穿搭"
+            style={({ pressed }) => ({
+              height: 40,
+              paddingHorizontal: 14,
+              borderWidth: 1,
+              borderColor: c.ink,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              opacity: pressed ? 0.7 : 1,
+            })}
           >
-            <Text className="text-white font-semibold">建立第一套穿搭</Text>
+            <Ionicons name="add" size={16} color={c.ink} />
+            <Txt size={13}>新穿搭</Txt>
           </Pressable>
-        </View>
-      ) : (
-        <FlatList
-          data={outfits}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+        }
+      />
+
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 24, marginTop: 8, borderBottomWidth: 1, borderBottomColor: c.ink }}>
+        {SEGS.map((s) => {
+          const on = s.key === seg;
+          return (
             <Pressable
-              className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800"
-              onPress={() => router.push(`/outfit/${item.id}`)}
+              key={s.key}
+              onPress={() => setSeg(s.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              hitSlop={{ top: 4, bottom: 4 }}
+              style={{ paddingVertical: 10, marginBottom: -1, borderBottomWidth: 2, borderBottomColor: on ? c.ink : 'transparent' }}
             >
-              <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                  {item.name || '未命名穿搭'}
-                </Text>
-                <Text className="text-xs text-gray-400">
-                  穿過 {item._count?.wearLogs ?? 0} 次
-                </Text>
-              </View>
-              <ScrollableItemThumbnails items={item.items} />
-              {item.rating && (
-                <View className="flex-row mt-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons
-                      key={star}
-                      name={star <= item.rating! ? 'star' : 'star-outline'}
-                      size={16}
-                      color={star <= item.rating! ? '#f59e0b' : '#d1d5db'}
-                    />
-                  ))}
-                </View>
-              )}
+              <Txt size={14} bold={on} tone={on ? 'ink' : 'mute'}>{s.label}</Txt>
             </Pressable>
-          )}
-        />
-      )}
+          );
+        })}
+      </View>
 
-      <Pressable
-        className="absolute bottom-6 right-6 w-14 h-14 rounded-full bg-primary-600 items-center justify-center shadow-lg active:bg-primary-700"
-        onPress={() => router.push('/outfit/builder')}
-      >
-        <Ionicons name="add" size={28} color="white" />
-      </Pressable>
-    </View>
-  );
-}
-
-function ScrollableItemThumbnails({ items }: { items: any[] }) {
-  return (
-    <View className="flex-row gap-2">
-      {items.map((outfitItem) => {
-        const thumb = outfitItem.clothingItem?.images?.[0]?.thumbnailPath;
-        return (
-          <View key={outfitItem.id} className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-            {thumb ? (
-              <Image
-                source={{ uri: `${API_BASE}/api/images/file/${thumb}` }}
-                className="w-full h-full"
-                contentFit="cover"
-              />
-            ) : (
-              <View className="w-full h-full items-center justify-center">
-                <Ionicons name="shirt-outline" size={20} color="#9ca3af" />
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
+      {seg === 'look' ? <LooksTab maxWidth={560} /> : null}
+      {seg === 'plan' ? <PlanTab /> : null}
+      {seg === 'pack' ? <PackTab /> : null}
+    </Screen>
   );
 }

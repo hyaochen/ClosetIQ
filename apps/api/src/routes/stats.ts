@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { tileFields } from '../lib/tile.js';
 import { prisma } from '../lib/prisma.js';
 
 export async function statsRoutes(app: FastifyInstance) {
@@ -84,6 +85,7 @@ export async function statsRoutes(app: FastifyInstance) {
         category: item.category,
         colorFamily: item.colorFamily,
         thumbnail: item.images[0]?.thumbnailPath ?? null,
+        ...tileFields(item.images[0]),
         totalWearCount,
         recentWearCount,
         lastWorn,
@@ -141,6 +143,7 @@ export async function statsRoutes(app: FastifyInstance) {
           colorFamily: item.colorFamily,
           condition: item.condition,
           thumbnail: item.images[0]?.thumbnailPath ?? null,
+          ...tileFields(item.images[0]),
           wearCount,
           lastWorn,
           costPerWear,

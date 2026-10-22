@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>新增衣物</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Noto+Serif+TC:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A1917;text-decoration:none}a:hover{color:#A8472A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F0E8; color: #1A1917; font-family: 'Noto Sans TC', sans-serif; box-sizing: border-box">
+  <div style="height: 54px; padding: 6px 12px 0 12px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box">
+    <a href="Wardrobe.dc.html" style="height: 44px; display: flex; align-items: center; padding: 0 8px; font-size: 14px">取消</a>
+    <div style="font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 17px">新增衣物</div>
+    <div style="width: 52px; text-align: right; padding-right: 8px; font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 16px">3 / 3</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 20px">
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="height: 3px; background: {{s.bar}}"></span>
+        <span style="font-size: 11px; letter-spacing: 0.1em; color: {{s.fg}}">{{s.label}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin: 12px 20px 0 20px; height: 196px; position: relative; display: flex; align-items: center; justify-content: center; background-color: #FFFFFF; background-image: repeating-conic-gradient(#EFEBE3 0% 25%, #FFFFFF 0% 50%); background-size: 16px 16px; border: 1px solid #CFC7B8">
+    <svg viewBox="0 0 100 100" width="170" height="170" aria-hidden="true"><path d="M32 10 L44 6 L50 16 L56 6 L68 10 L84 26 L90 72 L80 74 L72 38 L72 92 L28 92 L28 38 L20 74 L10 72 L16 26 Z M50 16 L50 92 M36 30 L36 90 M42 30 L42 90 M58 30 L58 90 M64 30 L64 90" fill="#B9C8D8" stroke="#1A1917" stroke-width="1" stroke-linejoin="round"></path></svg>
+    <span style="position: absolute; left: 10px; top: 10px; background: #1A1917; color: #F4F0E8; font-size: 11px; letter-spacing: 0.12em; padding: 3px 8px">已去背</span>
+    <a href="#" style="position: absolute; right: 10px; bottom: 8px; font-size: 12px; text-decoration: underline; text-underline-offset: 3px">重拍</a>
+  </div>
+
+  <div style="padding: 14px 20px 0 20px">
+    <div style="display: flex; align-items: baseline; justify-content: space-between">
+      <h2 style="margin: 0; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 18px">AI 辨識結果</h2>
+      <span style="font-size: 11px; color: #5E5A53">點選即可修改</span>
+    </div>
+
+    <label style="display: flex; align-items: center; gap: 12px; margin-top: 10px; border-bottom: 1px solid #1A1917; padding-bottom: 6px">
+      <span style="width: 40px; font-size: 12px; color: #5E5A53; letter-spacing: 0.1em">名稱</span>
+      <input value="淺藍條紋襯衫" style="flex: 1 1 auto; min-width: 0; border: 0; background: transparent; font-family: 'Noto Serif TC', serif; font-size: 17px; color: #1A1917; padding: 6px 0; outline: none">
+    </label>
+
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 42px; border-bottom: 1px solid #CFC7B8">
+        <span style="width: 40px; flex: none; font-size: 12px; color: #5E5A53; letter-spacing: 0.1em">{{r.k}}</span>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
+          <sc-for list="{{r.opts}}" as="o" hint-placeholder-count="3">
+            <button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-family: 'Noto Sans TC', sans-serif; font-size: 12px; cursor: pointer; border: 1px solid {{o.bd}}; background: {{o.bg}}; color: {{o.fg}}; border-bottom-style: {{o.bs}}">
+              <sc-if value="{{o.sw}}" hint-placeholder-val="{{ false }}"><span style="width: 10px; height: 10px; border: 1px solid #1A1917; background: {{o.sw}}"></span></sc-if>
+              <span>{{o.label}}</span>
+            </button>
+          </sc-for>
+          <sc-if value="{{r.low}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; color: #A8472A">待確認</span></sc-if>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 20px 22px 20px; border-top: 1px solid #1A1917; background: #F4F0E8; display: flex; gap: 10px; align-items: center">
+    <div style="flex: 1 1 auto; display: flex; flex-direction: column">
+      <span style="font-size: 11px; color: #5E5A53; letter-spacing: 0.1em">收納位置</span>
+      <span style="font-size: 14px">主衣櫃 · 左側吊掛</span>
+    </div>
+    <a href="Wardrobe.dc.html" style="height: 48px; padding: 0 26px; background: #1A1917; color: #F4F0E8; display: flex; align-items: center; justify-content: center; font-size: 14px; letter-spacing: 0.08em">存進衣櫃</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { seasons: { '春': true, '夏': true, '秋': true, '冬': false }, occ: { '通勤': true, '休閒': true, '正式': false, '運動': false } };
+  }
+  renderVals() {
+    var self = this;
+    function fixed(labels, sel, sw) {
+      return labels.map(function (l, i) {
+        var on = sel.indexOf(l) >= 0;
+        return { label: l, on: on, bg: on ? '#1A1917' : 'transparent', fg: on ? '#F4F0E8' : '#1A1917', bd: '#1A1917', bs: 'solid', sw: sw ? sw[i] : '', pick: function () {} };
+      });
+    }
+    function toggles(key) {
+      var m = self.state[key];
+      return Object.keys(m).map(function (l) {
+        var on = m[l];
+        return { label: l, on: on, bg: on ? '#1A1917' : 'transparent', fg: on ? '#F4F0E8' : '#1A1917', bd: '#1A1917', bs: 'solid', sw: '', pick: function () { var n = Object.assign({}, m); n[l] = !n[l]; var s = {}; s[key] = n; self.setState(s); } };
+      });
+    }
+    var material = [{ label: '棉', on: false, bg: 'transparent', fg: '#A8472A', bd: '#A8472A', bs: 'dashed', sw: '', pick: function () {} }];
+    var rows = [
+      { k: '分類', opts: fixed(['上衣', '襯衫'], ['上衣', '襯衫']), low: false },
+      { k: '顏色', opts: fixed(['淺藍', '白'], ['淺藍'], ['#B9C8D8', '#FFFFFF']), low: false },
+      { k: '花紋', opts: fixed(['直條紋'], ['直條紋']), low: false },
+      { k: '材質', opts: material, low: true },
+      { k: '季節', opts: toggles('seasons'), low: false },
+      { k: '場合', opts: toggles('occ'), low: false }
+    ];
+    var steps = [['拍照', 1], ['去背', 1], ['確認', 1]].map(function (s, i) {
+      return { label: (i + 1) + ' ' + s[0], bar: i < 2 ? '#1A1917' : '#A8472A', fg: i === 2 ? '#A8472A' : '#5E5A53' };
+    });
+    return { rows: rows, steps: steps };
+  }
+}
+</script>
+</body>
+</html>

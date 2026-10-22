@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { createOutfitSchema, updateOutfitSchema } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { deleteCoverFiles } from '../services/canvas.service.js';
 
 export async function outfitRoutes(app: FastifyInstance) {
   app.addHook('onRequest', app.authenticate);
@@ -44,6 +45,7 @@ export async function outfitRoutes(app: FastifyInstance) {
           orderBy: { layerOrder: 'asc' },
         },
         wearLogs: { orderBy: { date: 'desc' }, take: 10 },
+        _count: { select: { wearLogs: true } },
       },
     });
 
@@ -171,6 +173,8 @@ export async function outfitRoutes(app: FastifyInstance) {
     }
 
     await prisma.outfit.delete({ where: { id } });
+    // P4: 一併清掉封面檔（刪檔失敗不影響刪除結果）
+    await deleteCoverFiles([existing.coverPath, existing.coverThumbPath]);
     return reply.send({ message: '穿搭已刪除' });
   });
 }

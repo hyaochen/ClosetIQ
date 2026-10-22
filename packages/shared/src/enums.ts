@@ -162,3 +162,50 @@ export const WeatherConditionLabel: Record<WeatherCondition, string> = {
   SNOWY: '雪天',
   WINDY: '大風',
 };
+
+// 洗衣狀態
+export const LaundryStatus = {
+  CLEAN: 'CLEAN',
+  DIRTY: 'DIRTY',
+  CLEANING: 'CLEANING',
+} as const;
+export type LaundryStatus = (typeof LaundryStatus)[keyof typeof LaundryStatus];
+
+export const LaundryStatusLabel: Record<LaundryStatus, string> = {
+  CLEAN: '乾淨',
+  DIRTY: '待洗',
+  CLEANING: '送洗中',
+};
+
+// 穿過後自動轉待洗的類別（外套、鞋、包、配件不動）
+export const AUTO_DIRTY_CATEGORIES: ClothingCategory[] = ['TOP', 'BOTTOM', 'DRESS', 'UNDERWEAR'];
+
+/** 台灣月份對應季節：3-5 春、6-8 夏、9-11 秋、12-2 冬 */
+export function seasonFromMonth(month1to12: number): Season {
+  if (month1to12 >= 3 && month1to12 <= 5) return 'SPRING';
+  if (month1to12 >= 6 && month1to12 <= 8) return 'SUMMER';
+  if (month1to12 >= 9 && month1to12 <= 11) return 'AUTUMN';
+  return 'WINTER';
+}
+
+/** 取得目前季節（使用者手動設定優先，否則依台灣月份） */
+export function resolveCurrentSeason(currentSeason: string | null | undefined, now: Date = new Date()): Season {
+  if (currentSeason && currentSeason in Season) return currentSeason as Season;
+  const twMonth = new Date(now.getTime() + 8 * 3600 * 1000).getUTCMonth() + 1;
+  return seasonFromMonth(twMonth);
+}
+
+/** 季外 = seasons 非空且不含目前季節 */
+export function isOutOfSeason(seasons: string[], current: string): boolean {
+  return seasons.length > 0 && !seasons.includes(current);
+}
+// ---- P2 ----
+// 去背處理狀態（ClothingImage.cutoutStatus）
+export const CutoutStatus = {
+  NONE: 'NONE', // 尚未去背（舊照片、或去背功能未啟用）
+  PENDING: 'PENDING', // 排隊／處理中
+  DONE: 'DONE',
+  FAILED: 'FAILED',
+  SKIPPED: 'SKIPPED', // user chose the original photo; backfill leaves it alone
+} as const;
+export type CutoutStatus = (typeof CutoutStatus)[keyof typeof CutoutStatus];

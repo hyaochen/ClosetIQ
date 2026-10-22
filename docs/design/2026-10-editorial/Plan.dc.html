@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>週計畫與打包</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Noto+Serif+TC:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A1917;text-decoration:none}a:hover{color:#A8472A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F0E8; color: #1A1917; font-family: 'Noto Sans TC', sans-serif; box-sizing: border-box">
+  <div style="padding: 22px 20px 0 20px; display: flex; flex-direction: column">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <h1 style="margin: 0; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 34px; letter-spacing: 0.04em">穿搭</h1>
+      <a href="Canvas.dc.html" style="height: 40px; padding: 0 14px; border: 1px solid #1A1917; display: flex; align-items: center; gap: 6px; font-size: 13px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1917" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>新穿搭</a>
+    </div>
+
+    <div role="tablist" style="display: flex; gap: 24px; margin-top: 8px; border-bottom: 1px solid #1A1917">
+      <sc-for list="{{segs}}" as="s" hint-placeholder-count="3">
+        <button role="tab" aria-selected="{{s.on}}" onClick="{{s.pick}}" style="padding: 8px 0; margin-bottom: -1px; border: 0; border-bottom: {{s.bar}}; background: transparent; font-family: 'Noto Sans TC', sans-serif; font-size: 14px; font-weight: {{s.w}}; color: {{s.fg}}; cursor: pointer">{{s.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isLook}}" hint-placeholder-val="{{ false }}">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; margin-top: 16px">
+        <sc-for list="{{looks}}" as="l" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="height: 196px; background: #E9E2D4; position: relative">
+              <sc-for list="{{l.parts}}" as="g" hint-placeholder-count="3">
+                <svg viewBox="0 0 100 100" aria-hidden="true" style="position: absolute; left: {{g.x}}px; top: {{g.y}}px; width: {{g.s}}px; height: {{g.s}}px"><path d="{{g.d}}" fill="{{g.fill}}" stroke="#1A1917" stroke-width="1.4" stroke-linejoin="round"></path></svg>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline">
+              <span style="font-family: 'Noto Serif TC', serif; font-size: 14px">{{l.name}}</span>
+              <span style="font-size: 11px; color: #5E5A53">穿 {{l.n}} 次</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isPlan}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; flex-direction: column; margin-top: 4px">
+        <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+          <div style="display: flex; align-items: center; gap: 12px; height: 64px; border-bottom: 1px solid #CFC7B8">
+            <div style="width: 44px; display: flex; flex-direction: column; align-items: flex-start">
+              <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 600; font-size: 26px; line-height: 1; color: {{d.numFg}}">{{d.n}}</span>
+              <span style="font-size: 11px; color: #5E5A53">{{d.w}}</span>
+            </div>
+            <div style="width: 58px; font-size: 12px; color: #5E5A53; line-height: 1.4">{{d.t}}<br>{{d.c}}</div>
+            <sc-if value="{{d.has}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; gap: 6px; flex: 1 1 auto">
+                <sc-for list="{{d.parts}}" as="g" hint-placeholder-count="3">
+                  <span style="width: 46px; height: 46px; background: #E9E2D4; display: flex; align-items: center; justify-content: center">
+                    <svg viewBox="0 0 100 100" width="36" height="36" aria-hidden="true"><path d="{{g.d}}" fill="{{g.fill}}" stroke="#1A1917" stroke-width="2" stroke-linejoin="round"></path></svg>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{d.empty}}" hint-placeholder-val="{{ false }}">
+              <a href="Canvas.dc.html" style="flex: 1 1 auto; height: 46px; border: 1px dashed #5E5A53; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #5E5A53">安排穿搭</a>
+            </sc-if>
+            <sc-if value="{{d.trip}}" hint-placeholder-val="{{ false }}"><span style="font-size: 10px; letter-spacing: 0.1em; padding: 2px 5px; border: 1px solid #1A1917">東京</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isPack}}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top: 16px; display: flex; flex-direction: column">
+        <div style="font-size: 11px; letter-spacing: 0.18em; color: #5E5A53">TRIP · 4 天 3 夜</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <span style="font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 24px">東京</span>
+          <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px">10.25 – 10.28</span>
+        </div>
+        <div style="font-size: 12px; color: #5E5A53; margin-top: 2px">預報 12°–19° · 26 日有雨 · 依 3 套計畫產生</div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px">
+          <div style="flex: 1 1 auto; height: 6px; background: #E9E2D4"><div style="height: 6px; width: {{packPct}}; background: #1A1917"></div></div>
+          <span style="font-size: 12px">{{packDone}} / {{packTotal}}</span>
+        </div>
+        <sc-for list="{{pack}}" as="p" hint-placeholder-count="8">
+          <button onClick="{{p.toggle}}" aria-pressed="{{p.on}}" style="display: flex; align-items: center; gap: 12px; min-height: 44px; border: 0; border-bottom: 1px solid #CFC7B8; background: transparent; padding: 0; text-align: left; font-family: 'Noto Sans TC', sans-serif; color: #1A1917; cursor: pointer">
+            <span style="width: 18px; height: 18px; flex: none; border: 1px solid #1A1917; background: {{p.box}}; display: flex; align-items: center; justify-content: center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F4F0E8" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+            </span>
+            <span style="width: 34px; font-size: 11px; color: #5E5A53">{{p.cat}}</span>
+            <span style="flex: 1 1 auto; font-size: 14px; text-decoration: {{p.strike}}; color: {{p.fg}}">{{p.name}}</span>
+            <sc-if value="{{p.why}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; color: #A8472A">{{p.why}}</span></sc-if>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <nav style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #F4F0E8; border-top: 1px solid #1A1917; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); box-sizing: border-box; padding-bottom: 14px">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <a href="{{t.href}}" aria-label="{{t.label}}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; letter-spacing: 0.1em; color: {{t.fg}}; border-top: {{t.bar}}; margin-top: -1px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{t.fg}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+        <span>{{t.label}}</span>
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { seg: 'plan', packed: { 0: true, 1: true, 2: true, 4: true, 6: true } };
+  }
+  renderVals() {
+    var self = this;
+    var G = {
+      jacket: 'M30 10 L44 6 L50 22 L56 6 L70 10 L86 30 L84 88 L72 88 L70 46 L70 94 L30 94 L30 46 L28 88 L16 88 L14 30 Z M50 22 L50 94',
+      shirt: 'M32 10 L44 6 L50 16 L56 6 L68 10 L84 26 L90 72 L80 74 L72 38 L72 92 L28 92 L28 38 L20 74 L10 72 L16 26 Z M50 16 L50 92',
+      tee: 'M30 12 L42 8 Q50 16 58 8 L70 12 L88 28 L78 40 L70 34 L70 90 L30 90 L30 34 L22 40 L12 28 Z',
+      pants: 'M30 6 L70 6 L74 94 L56 94 L50 34 L44 94 L26 94 Z',
+      shoe: 'M8 64 L12 42 L32 44 L46 56 L82 60 Q93 62 93 72 L93 78 L8 78 Z',
+      dress: 'M38 6 L62 6 L60 30 L80 94 L20 94 L40 30 Z',
+      skirt: 'M32 14 L68 14 L82 88 L18 88 Z'
+    };
+    function p(d, f) { return { d: d, fill: f }; }
+    var segs = [['look', '作品集'], ['plan', '計畫'], ['pack', '打包']].map(function (s) {
+      var on = self.state.seg === s[0];
+      return { label: s[1], on: on, bar: on ? '2px solid #1A1917' : '2px solid transparent', w: on ? 700 : 400, fg: on ? '#1A1917' : '#5E5A53', pick: function () { self.setState({ seg: s[0] }); } };
+    });
+    var raw = [
+      ['21', '三', '24°', '多雲', [p(G.shirt, '#FBFAF7'), p(G.pants, '#2F3B52'), p(G.jacket, '#B08A5E')], false],
+      ['22', '四', '26°', '晴', [p(G.tee, '#23211F'), p(G.skirt, '#B08A5E'), p(G.shoe, '#FBFAF7')], false],
+      ['23', '五', '25°', '晴', null, false],
+      ['24', '六', '23°', '多雲', [p(G.dress, '#4F5B3A'), p(G.shoe, '#23211F')], false],
+      ['25', '日', '18°', '陰', [p(G.tee, '#FBFAF7'), p(G.pants, '#5A7290'), p(G.jacket, '#23211F')], true],
+      ['26', '一', '14°', '雨', [p(G.shirt, '#B9C8D8'), p(G.pants, '#23211F'), p(G.jacket, '#6B6B4A')], true],
+      ['27', '二', '17°', '晴', null, true]
+    ];
+    var days = raw.map(function (r, i) {
+      return { n: r[0], w: r[1], t: r[2], c: r[3], parts: r[4] || [], has: !!r[4], empty: !r[4], trip: r[5], numFg: i === 0 ? '#A8472A' : '#1A1917' };
+    });
+    var looks = [
+      { name: '週一通勤', n: 7, parts: [{ d: G.pants, fill: '#2F3B52', x: 64, y: 60, s: 120 }, { d: G.shirt, fill: '#FBFAF7', x: 30, y: 8, s: 110 }, { d: G.shoe, fill: '#FBFAF7', x: 8, y: 130, s: 70 }] },
+      { name: '週末散步', n: 4, parts: [{ d: G.skirt, fill: '#B08A5E', x: 60, y: 70, s: 110 }, { d: G.tee, fill: '#23211F', x: 20, y: 10, s: 110 }, { d: G.shoe, fill: '#FBFAF7', x: 10, y: 130, s: 70 }] },
+      { name: '雨天出門', n: 2, parts: [{ d: G.pants, fill: '#23211F', x: 70, y: 60, s: 120 }, { d: G.jacket, fill: '#6B6B4A', x: 10, y: 10, s: 120 }] },
+      { name: '聚餐', n: 3, parts: [{ d: G.dress, fill: '#4F5B3A', x: 30, y: 10, s: 140 }, { d: G.shoe, fill: '#23211F', x: 90, y: 130, s: 70 }] }
+    ];
+    var items = [['上衣', '白色 T 恤 ×2', ''], ['上衣', '淺藍條紋襯衫', ''], ['下身', '深藍直筒褲', ''], ['下身', '黑色寬褲', ''], ['外套', '橄欖綠防風外套', '26 日有雨'], ['外套', '黑色針織外套', '晚間 12°'], ['鞋', '白色皮革球鞋', ''], ['其他', '折疊傘', '自訂項目']];
+    var packed = this.state.packed;
+    var pack = items.map(function (it, i) {
+      var on = !!packed[i];
+      return { cat: it[0], name: it[1], why: it[2], on: on, box: on ? '#1A1917' : 'transparent', strike: on ? 'line-through' : 'none', fg: on ? '#5E5A53' : '#1A1917', toggle: function () { var n = Object.assign({}, packed); n[i] = !n[i]; self.setState({ packed: n }); } };
+    });
+    var done = pack.filter(function (x) { return x.on; }).length;
+    var icons = {
+      today: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z',
+      closet: 'M12 7a2 2 0 1 1 2-2c0 1.2-2 1.6-2 3L3 15c-.8.6-.4 2 .6 2h16.8c1 0 1.4-1.4.6-2L12 8',
+      outfit: 'M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5',
+      journal: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6',
+      me: 'M12 12a4 4 0 1 0 0-8a4 4 0 1 0 0 8zM4 21c1.2-4 4.4-6 8-6s6.8 2 8 6'
+    };
+    var tabs = [['today','今日','Main.dc.html'],['closet','衣櫃','Wardrobe.dc.html'],['outfit','穿搭','Plan.dc.html'],['journal','日記','Journal.dc.html'],['me','我的','Me.dc.html']].map(function (t) {
+      var on = t[0] === 'outfit';
+      return { label: t[1], href: t[2], icon: icons[t[0]], fg: on ? '#1A1917' : '#5E5A53', bar: on ? '2px solid #1A1917' : '2px solid transparent' };
+    });
+    var seg = this.state.seg;
+    return { segs: segs, days: days, looks: looks, pack: pack, packDone: done, packTotal: pack.length, packPct: Math.round(done / pack.length * 100) + '%', isLook: seg === 'look', isPlan: seg === 'plan', isPack: seg === 'pack', tabs: tabs };
+  }
+}
+</script>
+</body>
+</html>

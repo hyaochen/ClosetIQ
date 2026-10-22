@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>衣櫃</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Noto+Serif+TC:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1A1917;text-decoration:none}a:hover{color:#A8472A}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F4F0E8; color: #1A1917; font-family: 'Noto Sans TC', sans-serif; box-sizing: border-box">
+  <div style="padding: 22px 20px 0 20px; display: flex; flex-direction: column">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <div style="display: flex; align-items: baseline; gap: 10px">
+        <h1 style="margin: 0; font-family: 'Noto Serif TC', serif; font-weight: 700; font-size: 34px; letter-spacing: 0.04em">衣櫃</h1>
+        <span style="font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 18px; color: #5E5A53">128 pieces</span>
+      </div>
+      <button aria-label="搜尋" style="width: 44px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A1917" stroke-width="1.5" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM16 16l5 5"></path></svg>
+      </button>
+    </div>
+
+    <div style="display: flex; gap: 24px; margin-top: 8px; border-bottom: 1px solid #1A1917">
+      <a href="Wardrobe.dc.html" style="padding: 8px 0; font-size: 14px; font-weight: 700; border-bottom: 2px solid #1A1917; margin-bottom: -1px">我的衣物</a>
+      <a href="Wishlist.dc.html" style="padding: 8px 0; font-size: 14px; color: #5E5A53">願望清單 <span style="font-family: 'Cormorant Garamond', serif; font-style: italic">4</span></a>
+    </div>
+
+    <div style="display: flex; gap: 16px; margin-top: 12px; font-size: 13px; white-space: nowrap">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="8">
+        <span style="color: {{c.fg}}; font-weight: {{c.w}}; text-decoration: {{c.u}}; text-underline-offset: 6px">{{c.label}}</span>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: nowrap; overflow: hidden">
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="4">
+        <span style="height: 30px; padding: 0 12px; display: inline-flex; align-items: center; font-size: 12px; white-space: nowrap; border: 1px solid #1A1917; background: {{c.bg}}; color: {{c.fg}}">{{c.label}}</span>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; margin-top: 16px">
+      <sc-for list="{{items}}" as="it" hint-placeholder-count="6">
+        <a href="{{it.href}}" style="display: flex; flex-direction: column; gap: 6px">
+          <div style="height: 176px; background: #E9E2D4; position: relative; display: flex; align-items: center; justify-content: center">
+            <svg viewBox="0 0 100 100" width="132" height="132" aria-hidden="true" style="opacity: {{it.op}}"><path d="{{it.d}}" fill="{{it.fill}}" stroke="#1A1917" stroke-width="1.1" stroke-linejoin="round"></path></svg>
+            <sc-if value="{{it.tag}}" hint-placeholder-val="{{ false }}">
+              <span style="position: absolute; left: 8px; top: 8px; font-size: 11px; letter-spacing: 0.1em; padding: 2px 7px; background: {{it.tagBg}}; color: {{it.tagFg}}; border: 1px solid {{it.tagBd}}">{{it.tag}}</span>
+            </sc-if>
+          </div>
+          <div style="font-family: 'Noto Serif TC', serif; font-weight: 500; font-size: 14px">{{it.name}}</div>
+          <div style="font-size: 11px; color: #5E5A53; margin-top: -4px">{{it.meta}}</div>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <a href="AddItem.dc.html" aria-label="新增衣物" style="position: absolute; right: 20px; bottom: 92px; width: 56px; height: 56px; background: #1A1917; display: flex; align-items: center; justify-content: center">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F4F0E8" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+  </a>
+
+  <nav style="position: absolute; left: 0; right: 0; bottom: 0; height: 74px; background: #F4F0E8; border-top: 1px solid #1A1917; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); box-sizing: border-box; padding-bottom: 14px">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <a href="{{t.href}}" aria-label="{{t.label}}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; letter-spacing: 0.1em; color: {{t.fg}}; border-top: {{t.bar}}; margin-top: -1px">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{t.fg}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+        <span>{{t.label}}</span>
+      </a>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var G = {
+      jacket: 'M30 10 L44 6 L50 22 L56 6 L70 10 L86 30 L84 88 L72 88 L70 46 L70 94 L30 94 L30 46 L28 88 L16 88 L14 30 Z M50 22 L50 94',
+      shirt: 'M32 10 L44 6 L50 16 L56 6 L68 10 L84 26 L90 72 L80 74 L72 38 L72 92 L28 92 L28 38 L20 74 L10 72 L16 26 Z M50 16 L50 92',
+      pants: 'M30 6 L70 6 L74 94 L56 94 L50 34 L44 94 L26 94 Z',
+      shoe: 'M8 64 L12 42 L32 44 L46 56 L82 60 Q93 62 93 72 L93 78 L8 78 Z',
+      bag: 'M18 40 L82 40 L86 90 L14 90 Z M36 40 L36 30 Q36 18 50 18 Q64 18 64 30 L64 40 L60 40 L60 30 Q60 22 50 22 Q40 22 40 30 L40 40 Z',
+      shorts: 'M24 22 L76 22 L82 72 L56 74 L50 48 L44 74 L18 72 Z'
+    };
+    var none = { tag: '', tagBg: 'transparent', tagFg: '#1A1917', tagBd: 'transparent' };
+    var dirty = { tag: '待洗', tagBg: '#A8472A', tagFg: '#FFFFFF', tagBd: '#A8472A' };
+    var off = { tag: '季外', tagBg: '#F4F0E8', tagFg: '#1A1917', tagBd: '#1A1917' };
+    var raw = [
+      ['駝色短版風衣', G.jacket, '#B08A5E', '穿 18 次 · NT$122／次', none, 'ItemDetail.dc.html', 1],
+      ['白色牛津襯衫', G.shirt, '#FBFAF7', '穿 31 次 · NT$45／次', dirty, 'ItemDetail.dc.html', 1],
+      ['深藍直筒褲', G.pants, '#2F3B52', '穿 26 次 · NT$58／次', none, 'ItemDetail.dc.html', 1],
+      ['白色皮革球鞋', G.shoe, '#FBFAF7', '穿 40 次 · NT$70／次', none, 'ItemDetail.dc.html', 1],
+      ['黑色帆布托特', G.bag, '#23211F', '穿 12 次 · NT$83／次', none, 'ItemDetail.dc.html', 1],
+      ['橄欖綠短褲', G.shorts, '#6B6B4A', '穿 9 次 · NT$110／次', off, 'ItemDetail.dc.html', 0.55]
+    ];
+    var items = raw.map(function (r) {
+      return { name: r[0], d: r[1], fill: r[2], meta: r[3], tag: r[4].tag, tagBg: r[4].tagBg, tagFg: r[4].tagFg, tagBd: r[4].tagBd, href: r[5], op: r[6] };
+    });
+    var cats = ['全部','上衣','下身','外套','洋裝','鞋','包','配件'].map(function (c, i) {
+      return { label: c, fg: i === 0 ? '#1A1917' : '#5E5A53', w: i === 0 ? 700 : 400, u: i === 0 ? 'underline' : 'none' };
+    });
+    var chips = [['乾淨', true], ['只看季內', true], ['主衣櫃', false], ['最少穿在前', false]].map(function (c) {
+      return { label: c[0], bg: c[1] ? '#1A1917' : 'transparent', fg: c[1] ? '#F4F0E8' : '#1A1917' };
+    });
+    var icons = {
+      today: 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8z',
+      closet: 'M12 7a2 2 0 1 1 2-2c0 1.2-2 1.6-2 3L3 15c-.8.6-.4 2 .6 2h16.8c1 0 1.4-1.4.6-2L12 8',
+      outfit: 'M12 3l9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5L12 21l9-4.5',
+      journal: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6',
+      me: 'M12 12a4 4 0 1 0 0-8a4 4 0 1 0 0 8zM4 21c1.2-4 4.4-6 8-6s6.8 2 8 6'
+    };
+    var active = 'closet';
+    var tabs = [['today','今日','Main.dc.html'],['closet','衣櫃','Wardrobe.dc.html'],['outfit','穿搭','Plan.dc.html'],['journal','日記','Journal.dc.html'],['me','我的','Me.dc.html']].map(function (t) {
+      var on = t[0] === active;
+      return { label: t[1], href: t[2], icon: icons[t[0]], fg: on ? '#1A1917' : '#5E5A53', bar: on ? '2px solid #1A1917' : '2px solid transparent' };
+    });
+    return { items: items, cats: cats, chips: chips, tabs: tabs };
+  }
+}
+</script>
+</body>
+</html>

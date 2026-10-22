@@ -1,37 +1,12 @@
 import type { FastifyInstance } from 'fastify';
+import { tileFields } from '../lib/tile.js';
 import { suggestOutfitSchema, temperatureToSeason } from '@closet/shared';
-import { prisma } from '../lib/prisma.js';
-
-const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+import { loadScoredItems } from '../services/scoring.service.js';
+import { getCurrentWeather } from '../services/weather.service.js';
 
 interface WeatherData {
   temp: number;
   condition: string;
-}
-
-async function fetchWeather(lat: number, lon: number): Promise<WeatherData | null> {
-  if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'your_api_key_here') return null;
-
-  try {
-    const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`
-    );
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    const temp = Math.round(data.main.temp);
-    const weatherId = data.weather[0]?.id ?? 0;
-
-    let condition = 'CLOUDY';
-    if (weatherId >= 200 && weatherId < 600) condition = 'RAINY';
-    else if (weatherId >= 600 && weatherId < 700) condition = 'SNOWY';
-    else if (weatherId === 800) condition = 'SUNNY';
-    else if (weatherId >= 771) condition = 'WINDY';
-
-    return { temp, condition };
-  } catch {
-    return null;
-  }
 }
 
 export async function suggestionRoutes(app: FastifyInstance) {
@@ -50,62 +25,15 @@ export async function suggestionRoutes(app: FastifyInstance) {
     // Fetch weather if location provided
     let weather: WeatherData | null = null;
     if (lat !== undefined && lon !== undefined) {
-      weather = await fetchWeather(lat, lon);
+      const cur = await getCurrentWeather(lat, lon); // 失敗回 null，推薦照常運作（不依天氣加分）
+      weather = cur ? { temp: cur.temp, condition: cur.condition } : null;
     }
 
     // Determine target seasons
     const targetSeasons = weather ? temperatureToSeason(weather.temp) : [];
 
-    // Get all active items
-    const items = await prisma.clothingItem.findMany({
-      where: { userId, isActive: true },
-      include: {
-        images: { where: { isPrimary: true }, take: 1 },
-        _count: { select: { wearLogItems: true } },
-        wearLogItems: {
-          orderBy: { wearLog: { date: 'desc' } },
-          take: 1,
-          include: { wearLog: { select: { date: true } } },
-        },
-      },
-    });
-
-    // Score each item
-    const scored = items.map((item) => {
-      let score = 0;
-      const lastWorn = item.wearLogItems[0]?.wearLog.date ?? null;
-      const wearCount = item._count.wearLogItems;
-
-      // Season match
-      if (targetSeasons.length > 0) {
-        const seasonMatch = item.seasons.some((s) => targetSeasons.includes(s));
-        if (seasonMatch) score += 10;
-        else score -= 20; // Strong penalty for wrong season
-      }
-
-      // Occasion match
-      if (occasion && item.occasions.includes(occasion)) {
-        score += 8;
-      }
-
-      // Prefer less worn items
-      if (wearCount === 0) score += 5;
-      else score -= wearCount * 0.3;
-
-      // Prefer items not recently worn
-      if (lastWorn) {
-        const daysSince = (Date.now() - lastWorn.getTime()) / (1000 * 60 * 60 * 24);
-        score += Math.min(daysSince * 0.2, 5);
-      } else {
-        score += 3; // Never worn bonus
-      }
-
-      // Condition bonus
-      if (item.condition === 'NEW') score += 2;
-      if (item.condition === 'GOOD') score += 1;
-
-      return { ...item, score };
-    });
+    // Get all active items and score each one (shared with plans/trips)
+    const scored = await loadScoredItems(userId, { targetSeasons, occasion });
 
     // Helper: pick a candidate with randomness that increases by attempt index
     const pickCandidate = (candidates: typeof scored, attempt: number) => {
@@ -121,6 +49,7 @@ export async function suggestionRoutes(app: FastifyInstance) {
       category: item.category,
       colorFamily: item.colorFamily,
       thumbnail: item.images[0]?.thumbnailPath ?? null,
+      ...tileFields(item.images[0]),
     });
 
     // Build 6 outfit suggestions
