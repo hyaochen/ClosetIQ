@@ -1,0 +1,8 @@
+# NOT executed by the worker. Owner decision required (system setting).
+# Run as the account holder after running setup-token.mjs once:
+#
+#   $vbs = "C:\Users\a0927\Desktop\Closet\tools\claude-bridge\run-hidden.vbs"
+#   $a = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbs`""
+#   $t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+#   $s = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)
+#   Register-ScheduledTask -TaskName "ClosetIQ claude-bridge" -Action $a -Trigger $t -Settings $s
