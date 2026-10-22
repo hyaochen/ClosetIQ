@@ -175,19 +175,25 @@ export default function MeScreen() {
 
       {/* 選單 */}
       <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.ink }}>
-        <ListRow index="01" onPress={() => router.push('/analytics')} left={<Txt size={14}>統計分析</Txt>} right={<Txt size={12} tone="mute">每次成本、品牌</Txt>} />
-        <ListRow index="02" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
+        <ListRow
+          index="01"
+          onPress={() => router.push('/home-city')}
+          left={<Txt size={14}>常用城市</Txt>}
+          right={<Txt size={12} tone="mute">{me?.homeCity ?? '未設定，預設台北'}</Txt>}
+        />
+        <ListRow index="02" onPress={() => router.push('/analytics')} left={<Txt size={14}>統計分析</Txt>} right={<Txt size={12} tone="mute">每次成本、品牌</Txt>} />
+        <ListRow index="03" onPress={() => router.push('/declutter')} left={<Txt size={14}>斷捨離</Txt>} right={<Txt size={12} tone="mute">整理建議</Txt>} />
         {backfill?.enabled ? (
           <ListRow
-            index="03"
+            index="04"
             onPress={() => router.push('/tidy-photos')}
             left={<Txt size={14}>整理舊照片</Txt>}
             right={<Txt size={12} tone="mute">{backfill.job?.running ? '整理中' : backfill.remaining > 0 ? `${backfill.remaining} 張未去背` : '都已去背'}</Txt>}
           />
         ) : null}
-        <ListRow index={backfill?.enabled ? '04' : '03'} onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
+        <ListRow index={backfill?.enabled ? '05' : '04'} onPress={cycleTheme} left={<Txt size={14}>外觀</Txt>} right={<Txt size={12} tone="mute">{`${THEME_LABEL[mode]}，點一下切換`}</Txt>} />
         <ListRow
-          index={backfill?.enabled ? '05' : '04'}
+          index={backfill?.enabled ? '06' : '05'}
           chevron={false}
           left={<Txt size={14}>穿後自動標記待洗</Txt>}
           right={
@@ -203,7 +209,7 @@ export default function MeScreen() {
           }
           minHeight={56}
         />
-        <ListRow index={backfill?.enabled ? '06' : '05'} onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
+        <ListRow index={backfill?.enabled ? '07' : '06'} onPress={handleLogout} left={<Txt size={14}>登出</Txt>} right={<Txt size={12} tone="mute">{user?.email ?? ''}</Txt>} last />
       </View>
 
       <PickerSheet

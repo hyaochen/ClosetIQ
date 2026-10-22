@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "homeCity" TEXT,
+ADD COLUMN     "homeLat" DOUBLE PRECISION,
+ADD COLUMN     "homeLon" DOUBLE PRECISION;

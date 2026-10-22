@@ -189,13 +189,22 @@ export async function tripRoutes(app: FastifyInstance) {
     if (end < start) return reply.status(400).send({ error: '結束日期不可早於出發日期' });
     if (diffDays(start, end) + 1 > MAX_TRIP_DAYS) return reply.status(400).send({ error: `旅行最多 ${MAX_TRIP_DAYS} 天` });
 
+    // 改了目的地但沒帶座標：重新查一次，查不到就清成 null，避免沿用舊城市的座標抓預報
+    let lat = d.lat;
+    let lon = d.lon;
+    if (d.destination !== undefined && d.destination !== existing.destination && lat === undefined && lon === undefined) {
+      const geo = await geocodeCity(d.destination);
+      lat = geo ? geo.lat : null;
+      lon = geo ? geo.lon : null;
+    }
+
     const trip = await prisma.trip.update({
       where: { id },
       data: {
         name: d.name,
         destination: d.destination,
-        lat: d.lat,
-        lon: d.lon,
+        lat,
+        lon,
         startDate: d.startDate ? toDbDate(d.startDate) : undefined,
         endDate: d.endDate ? toDbDate(d.endDate) : undefined,
       },

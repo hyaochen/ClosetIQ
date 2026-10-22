@@ -61,6 +61,7 @@ export default function RootLayout() {
             <Stack.Screen name="analytics" />
             <Stack.Screen name="laundry" />
             <Stack.Screen name="storage" />
+            <Stack.Screen name="home-city" />
           </Stack>
         </View>
         <AlertModal />

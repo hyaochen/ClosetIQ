@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { analyzeByImageIdSchema } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { storagePath } from '../lib/storage.js';
 import {
   getProvider,
   prepareImage,
@@ -14,6 +15,7 @@ import {
   recordTokens,
   dailyLimit,
   analyzeStatus,
+  isUserAllowed,
 } from '../services/ai/index.js';
 
 const STORAGE_PATH = () => process.env.IMAGE_STORAGE_PATH || './data/images';
@@ -23,7 +25,7 @@ export async function analyzeRoutes(app: FastifyInstance) {
   app.addHook('onRequest', app.authenticate);
 
   // GET /api/items/analyze/status - the frontend only looks at this to decide whether to show the AI block
-  app.get('/api/items/analyze/status', async (_request, reply) => reply.send(analyzeStatus()));
+  app.get('/api/items/analyze/status', async (request, reply) => reply.send(await analyzeStatus(request.user.id)));
 
   // Input (one of):
   //   multipart/form-data with a "file" field (photo taken but not yet saved as an item image)
@@ -32,7 +34,9 @@ export async function analyzeRoutes(app: FastifyInstance) {
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
   }, async (request, reply) => {
     const provider = getProvider();
-    if (!provider) return reply.status(503).send({ error: 'AI 辨識未設定（缺少 ANTHROPIC_API_KEY）' });
+    if (!provider) return reply.status(503).send({ error: 'AI 辨識未設定' });
+    // Subscription-backed bridge: account holder only (ToS). Checked before anything is read or counted.
+    if (!isUserAllowed(provider, request.user.id)) return reply.status(403).send({ error: '此帳號未開放 AI 辨識' });
 
     // 1. Load the image bytes (validate before spending quota)
     let source: Buffer;
@@ -54,7 +58,7 @@ export async function analyzeRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: '找不到此圖片' });
       }
       try {
-        source = await fs.readFile(path.join(STORAGE_PATH(), image.originalPath));
+        source = await fs.readFile(path.join(storagePath(), image.originalPath));
       } catch {
         return reply.status(404).send({ error: '圖片檔案不存在' });
       }
@@ -86,7 +90,7 @@ export async function analyzeRoutes(app: FastifyInstance) {
         usage: {
           inputTokens: result.usage.inputTokens,
           outputTokens: result.usage.outputTokens,
-          estimatedCostUsd: Math.round(estimateCostUsd(result.usage.inputTokens, result.usage.outputTokens) * 1e6) / 1e6,
+          estimatedCostUsd: provider.name === 'bridge' ? 0 : Math.round(estimateCostUsd(result.usage.inputTokens, result.usage.outputTokens) * 1e6) / 1e6,
         },
         quota: { limit, used, remaining: Math.max(0, limit - used) },
       });

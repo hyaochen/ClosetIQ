@@ -12,8 +12,8 @@ import {
 import { prisma } from '../lib/prisma.js';
 import { processAndSaveImage } from '../services/image.service.js';
 import { analyzeCandidate, type WardrobeItem } from '../services/wishlist-analysis.js';
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 const ALL_SEASONS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
 const RECENT_DAYS = 90;
 
@@ -27,11 +27,66 @@ async function removeFiles(paths: Array<string | null | undefined>) {
   for (const p of paths) {
     if (!p) continue;
     try {
-      await fs.unlink(path.join(STORAGE_PATH, p));
+      await fs.unlink(path.join(storagePath(), p));
     } catch {
       /* 檔案可能已不存在 */
     }
   }
+}
+
+/** 衣櫃現況（啟用中的衣物 + 近 90 天穿著次數），列表分數與單項分析共用 */
+async function loadWardrobe(userId: string) {
+  const since = new Date();
+  since.setDate(since.getDate() - RECENT_DAYS);
+
+  const rows = await prisma.clothingItem.findMany({
+    where: { userId, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      subcategory: true,
+      colorFamily: true,
+      pattern: true,
+      seasons: true,
+      occasions: true,
+      images: { where: { isPrimary: true }, take: 1, select: TILE_IMAGE_SELECT },
+      _count: { select: { wearLogItems: true } },
+      wearLogItems: {
+        where: { wearLog: { date: { gte: since } } },
+        select: { id: true },
+      },
+    },
+  });
+
+  const thumbs = new Map<string, TileFields & { thumbnail: string | null }>();
+  const wardrobe: WardrobeItem[] = rows.map((r) => {
+    thumbs.set(r.id, { thumbnail: r.images[0]?.thumbnailPath ?? null, ...tileFields(r.images[0]) });
+    return {
+      id: r.id,
+      name: r.name,
+      category: r.category,
+      subcategory: r.subcategory,
+      colorFamily: r.colorFamily,
+      pattern: r.pattern,
+      seasons: r.seasons,
+      occasions: r.occasions,
+      recentWearCount: r.wearLogItems.length,
+      totalWearCount: r._count.wearLogItems,
+    };
+  });
+  return { wardrobe, thumbs };
+}
+
+function candidateOf(wish: WishRow) {
+  return {
+    category: wish.category,
+    subcategory: wish.subcategory,
+    colorFamily: wish.colorFamily,
+    pattern: wish.pattern,
+    seasons: wish.seasons,
+    occasions: wish.occasions,
+  };
 }
 
 export async function wishlistRoutes(app: FastifyInstance) {
@@ -47,7 +102,16 @@ export async function wishlistRoutes(app: FastifyInstance) {
     if (parsed.data.status) where.status = parsed.data.status;
     if (parsed.data.category) where.category = parsed.data.category;
     const rows = await prisma.wishlistItem.findMany({ where, orderBy: { createdAt: 'desc' } });
-    return reply.send({ items: rows.map(present) });
+    // 想買的項目一次算好購前分數（衣櫃只讀一次），前端不必對每項再打 analysis；其他狀態 score 為 null
+    const wanting = rows.filter((r) => r.status === 'WANT');
+    let wardrobe: WardrobeItem[] = [];
+    if (wanting.length > 0) wardrobe = (await loadWardrobe(request.user.id)).wardrobe;
+    return reply.send({
+      items: rows.map((r) => ({
+        ...present(r),
+        score: r.status === 'WANT' ? analyzeCandidate(candidateOf(r), wardrobe).score : null,
+      })),
+    });
   });
 
   // POST /api/wishlist
@@ -181,11 +245,11 @@ export async function wishlistRoutes(app: FastifyInstance) {
       };
       try {
         for (const dir of ['original', 'display', 'thumbnail']) {
-          await fs.mkdir(path.join(STORAGE_PATH, userId, dir), { recursive: true });
+          await fs.mkdir(path.join(storagePath(), userId, dir), { recursive: true });
         }
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageOriginalPath), path.join(STORAGE_PATH, targets.originalPath));
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageDisplayPath), path.join(STORAGE_PATH, targets.displayPath));
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageThumbnailPath), path.join(STORAGE_PATH, targets.thumbnailPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageOriginalPath), path.join(storagePath(), targets.originalPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageDisplayPath), path.join(storagePath(), targets.displayPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageThumbnailPath), path.join(storagePath(), targets.thumbnailPath));
         copied = targets;
       } catch {
         await removeFiles(Object.values(targets));
@@ -249,57 +313,8 @@ export async function wishlistRoutes(app: FastifyInstance) {
     const wish = await prisma.wishlistItem.findFirst({ where: { id, userId } });
     if (!wish) return reply.status(404).send({ error: '找不到此願望清單項目' });
 
-    const since = new Date();
-    since.setDate(since.getDate() - RECENT_DAYS);
-
-    const rows = await prisma.clothingItem.findMany({
-      where: { userId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        subcategory: true,
-        colorFamily: true,
-        pattern: true,
-        seasons: true,
-        occasions: true,
-        images: { where: { isPrimary: true }, take: 1, select: TILE_IMAGE_SELECT },
-        _count: { select: { wearLogItems: true } },
-        wearLogItems: {
-          where: { wearLog: { date: { gte: since } } },
-          select: { id: true },
-        },
-      },
-    });
-
-    const thumbs = new Map<string, TileFields & { thumbnail: string | null }>();
-    const wardrobe: WardrobeItem[] = rows.map((r) => {
-      thumbs.set(r.id, { thumbnail: r.images[0]?.thumbnailPath ?? null, ...tileFields(r.images[0]) });
-      return {
-        id: r.id,
-        name: r.name,
-        category: r.category,
-        subcategory: r.subcategory,
-        colorFamily: r.colorFamily,
-        pattern: r.pattern,
-        seasons: r.seasons,
-        occasions: r.occasions,
-        recentWearCount: r.wearLogItems.length,
-        totalWearCount: r._count.wearLogItems,
-      };
-    });
-
-    const result = analyzeCandidate(
-      {
-        category: wish.category,
-        subcategory: wish.subcategory,
-        colorFamily: wish.colorFamily,
-        pattern: wish.pattern,
-        seasons: wish.seasons,
-        occasions: wish.occasions,
-      },
-      wardrobe
-    );
+    const { wardrobe, thumbs } = await loadWardrobe(userId);
+    const result = analyzeCandidate(candidateOf(wish), wardrobe);
 
     return reply.send({
       compatibleCount: result.compatibleCount,

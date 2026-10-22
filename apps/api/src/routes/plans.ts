@@ -8,6 +8,7 @@ import {
   type ForecastDay,
 } from '@closet/shared';
 import { prisma } from '../lib/prisma.js';
+import { resolveCoords } from '../lib/home-location.js';
 import { loadScoredItems, type ScoredItem } from '../services/scoring.service.js';
 import {
   getForecast,
@@ -73,10 +74,12 @@ function eachDate(from: string, to: string): string[] {
 }
 
 /** 範圍若與預報窗口（今天起 16 天）有交集才去拿預報 */
-async function forecastForRange(from: string, to: string, lat?: number, lon?: number) {
+async function forecastForRange(userId: string, from: string, to: string, lat?: number, lon?: number) {
   const today = todayTaipei();
   if (to < today || from > addDays(today, FORECAST_DAYS - 1)) return null;
-  return getForecast(lat ?? DEFAULT_LAT, lon ?? DEFAULT_LON);
+  // 座標優先序：請求帶的 -> 使用者常用城市 -> 台北
+  const c = await resolveCoords(userId, lat, lon);
+  return getForecast(c?.lat ?? DEFAULT_LAT, c?.lon ?? DEFAULT_LON);
 }
 
 export async function planRoutes(app: FastifyInstance) {
@@ -91,7 +94,7 @@ export async function planRoutes(app: FastifyInstance) {
     const to = addDays(from, 6);
 
     const [forecast, plans, logs] = await Promise.all([
-      forecastForRange(from, to, parsed.data.lat, parsed.data.lon),
+      forecastForRange(userId, from, to, parsed.data.lat, parsed.data.lon),
       prisma.plannedOutfit.findMany({
         where: { userId, date: { gte: toDbDate(from), lte: toDbDate(to) } },
         select: { date: true },
@@ -127,7 +130,7 @@ export async function planRoutes(app: FastifyInstance) {
     const userId = request.user.id;
 
     const [forecast, plans, logs] = await Promise.all([
-      forecastForRange(r.from, r.to, parsed.data.lat, parsed.data.lon),
+      forecastForRange(userId, r.from, r.to, parsed.data.lat, parsed.data.lon),
       prisma.plannedOutfit.findMany({
         where: { userId, date: { gte: toDbDate(r.from), lte: toDbDate(r.to) } },
         include: planInclude,
@@ -233,7 +236,7 @@ export async function planRoutes(app: FastifyInstance) {
     // 預報有資料時順便帶入天氣
     let weatherTemp: number | undefined;
     let weatherCondition: string | undefined;
-    const fc = forecastFor(await forecastForRange(date, date), date);
+    const fc = forecastFor(await forecastForRange(userId, date, date), date);
     if (fc) {
       weatherTemp = Math.round((fc.min + fc.max) / 2);
       weatherCondition = fc.condition;
@@ -297,7 +300,7 @@ export async function planRoutes(app: FastifyInstance) {
     const blocked = (id: string, date: string) =>
       (usedOn.get(id) ?? []).some((d) => Math.abs(diffDays(d, date)) < NO_REPEAT_WINDOW);
 
-    const forecast = await forecastForRange(r.from, r.to, parsed.data.lat, parsed.data.lon);
+    const forecast = await forecastForRange(userId, r.from, r.to, parsed.data.lat, parsed.data.lon);
     const scoredBySeasons = new Map<string, ScoredItem[]>();
     const getScored = async (seasons: string[], date: string) => {
       // 季外篩選依「計畫那天」的季節；同月份且同溫度季節的日子共用一次查詢

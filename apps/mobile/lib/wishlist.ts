@@ -1,4 +1,4 @@
-import { useQuery, useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { WishlistAnalysis, WardrobeGap, WishlistStatus } from '@closet/shared';
 import { api, tokenStorage } from './api';
 import { API_BASE } from './images';
@@ -26,6 +26,8 @@ export type WishlistItem = {
   boughtItemId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** 列表 API 一次算好的購前分數（只有「想買」有值） */
+  score?: number | null;
 };
 
 export const WISHLIST_STATUS_LABEL: Record<WishlistStatus, string> = {
@@ -59,22 +61,6 @@ export function useWishlistAnalysis(id: string | undefined, enabled = true) {
     enabled: !!id && enabled,
     staleTime: 60_000,
   });
-}
-
-/** 列表用：一次取多筆分析分數 */
-export function useWishlistScores(ids: string[]): Record<string, number | undefined> {
-  const results = useQueries({
-    queries: ids.map((id) => ({
-      queryKey: ['wishlist', 'analysis', id],
-      queryFn: () => api<WishlistAnalysis>(`/api/wishlist/${id}/analysis`),
-      staleTime: 60_000,
-    })),
-  });
-  const out: Record<string, number | undefined> = {};
-  ids.forEach((id, i) => {
-    out[id] = results[i]?.data?.score;
-  });
-  return out;
 }
 
 /** 缺口：API 直接回陣列 */

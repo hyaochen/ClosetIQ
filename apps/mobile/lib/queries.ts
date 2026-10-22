@@ -16,6 +16,9 @@ export type Me = {
   currentSeason: string | null;
   autoDirtyOnWear: boolean;
   effectiveSeason: string;
+  homeCity: string | null;
+  homeLat: number | null;
+  homeLon: number | null;
 };
 
 export type StorageLocation = {
@@ -80,12 +83,19 @@ export async function setLaundryStatus(itemIds: string[], status: LaundryStatus)
   queryClient.invalidateQueries({ queryKey: ['suggestions'], refetchType: 'none' });
 }
 
-export async function updateSettings(patch: { currentSeason?: string | null; autoDirtyOnWear?: boolean }) {
+export async function updateSettings(patch: {
+  currentSeason?: string | null;
+  autoDirtyOnWear?: boolean;
+  homeCity?: string | null;
+  homeLat?: number | null;
+  homeLon?: number | null;
+}) {
   const res = await api('/api/auth/settings', { method: 'PATCH', body: JSON.stringify(patch) });
   queryClient.setQueryData(['me'], res.user);
   queryClient.invalidateQueries({ queryKey: ['items'] });
   queryClient.invalidateQueries({ queryKey: ['off-season-items'] });
   queryClient.invalidateQueries({ queryKey: ['suggestions'] });
+  if ('homeLat' in patch) queryClient.invalidateQueries({ queryKey: ['plans-week'] }); // 常用城市改了，預報要重抓
   return res.user as Me;
 }
 

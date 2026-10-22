@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  ClothingCategoryLabel, ColorFamilyLabel, SeasonLabel, OccasionLabel,
+  ClothingCategoryLabel, ColorFamilyLabel, SeasonLabel, OccasionLabel, PatternLabel,
 } from '@closet/shared';
 import { showAlert } from '@/lib/alert';
 import { isHttpUrl, type WishlistItem, type PickedImage } from '@/lib/wishlist';
@@ -15,6 +15,7 @@ export function useWishlistForm() {
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [colorFamily, setColorFamily] = useState('');
+  const [pattern, setPattern] = useState('SOLID');
   const [seasons, setSeasons] = useState<string[]>([]);
   const [occasions, setOccasions] = useState<string[]>([]);
   const [price, setPrice] = useState('');
@@ -30,6 +31,7 @@ export function useWishlistForm() {
     setCategory(w.category);
     setSubcategory(w.subcategory ?? '');
     setColorFamily(w.colorFamily);
+    setPattern(w.pattern || 'SOLID');
     setSeasons(w.seasons ?? []);
     setOccasions(w.occasions ?? []);
     setPrice(w.price !== null && w.price !== undefined ? String(w.price) : '');
@@ -52,6 +54,7 @@ export function useWishlistForm() {
     category,
     subcategory: subcategory.trim() || undefined,
     colorFamily,
+    pattern,
     colors: [] as string[],
     seasons,
     occasions,
@@ -66,6 +69,7 @@ export function useWishlistForm() {
     category,
     subcategory: subcategory.trim() || null,
     colorFamily,
+    pattern,
     seasons,
     occasions,
     price: price.trim() ? Number(price) : null,
@@ -74,7 +78,7 @@ export function useWishlistForm() {
   });
 
   return {
-    name, setName, category, setCategory, subcategory, setSubcategory, colorFamily, setColorFamily,
+    name, setName, category, setCategory, subcategory, setSubcategory, colorFamily, setColorFamily, pattern, setPattern,
     seasons, setSeasons, occasions, setOccasions, price, setPrice, url, setUrl, note, setNote,
     image, setImage, toggle, fill, validate, createPayload, updatePayload,
   };
@@ -137,6 +141,10 @@ export function WishlistFields({
       </FieldRow>
       <FieldRow label="色系 *" stacked>
         <ChipGroup items={ColorFamilyLabel} selected={form.colorFamily} onSelect={form.setColorFamily} />
+      </FieldRow>
+      <FieldRow label="花紋" stacked>
+        <ChipGroup items={PatternLabel} selected={form.pattern} onSelect={form.setPattern} />
+        <Txt size={11} tone="mute" style={{ lineHeight: 16 }}>有花紋的單品不和衣櫃裡其他有花紋的單品算同穿，會影響購前分析</Txt>
       </FieldRow>
       <FieldRow label="季節" stacked>
         <MultiChipGroup items={SeasonLabel} selected={form.seasons} onToggle={(k) => form.toggle(form.seasons, k, form.setSeasons)} />
