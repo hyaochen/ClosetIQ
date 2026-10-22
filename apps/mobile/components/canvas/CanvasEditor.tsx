@@ -11,10 +11,10 @@ import { useColors } from '@/lib/theme';
 import { showAlert, showConfirm } from '@/lib/alert';
 import { Txt, Serif } from '@/components/ui';
 import { CanvasStage, type PiecePatch } from './CanvasStage';
-import { CanvasToolbar, ItemTray, BackgroundPicker } from './CanvasParts';
+import { CanvasToolbar, CanvasStepBar, ItemTray, BackgroundPicker, type StepKey } from './CanvasParts';
 import { SaveSheet, type OutfitMeta } from './SaveSheet';
 import {
-  canvasImagePath, clamp, defaultPiece, layoutToPieces, piecesToLayout, primaryImage, type EditorPiece,
+  canvasImagePath, clamp, normDeg, SCALE_MIN, SCALE_MAX, defaultPiece, layoutToPieces, piecesToLayout, primaryImage, type EditorPiece,
 } from './canvas-utils';
 import { exportOutfitPng } from './export';
 
@@ -183,6 +183,16 @@ export function CanvasEditor({ outfitId, presetItemIds }: { outfitId?: string; p
     if (k === 'remove') setSelected(null);
   };
 
+  // 步進鈕：縮放每次 10%、旋轉每次 15 度（與手勢共用範圍限制）
+  const handleStep = (k: StepKey) => {
+    if (!selected) return;
+    const cur = pieces.find((p) => p.itemId === selected);
+    if (!cur) return;
+    if (k === 'shrink') patch(selected, { scale: clamp(cur.scale * 0.9, SCALE_MIN, SCALE_MAX) });
+    else if (k === 'grow') patch(selected, { scale: clamp(cur.scale * 1.1, SCALE_MIN, SCALE_MAX) });
+    else patch(selected, { rotate: normDeg(cur.rotate + (k === 'rotR' ? 15 : -15)) });
+  };
+
   const leave = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/outfits');
@@ -290,6 +300,7 @@ export function CanvasEditor({ outfitId, presetItemIds }: { outfitId?: string; p
           </View>
 
           <View style={{ marginTop: 10 }}>
+            {selected ? <CanvasStepBar onStep={handleStep} /> : null}
             <CanvasToolbar enabled={!!selected} onTool={handleTool} />
           </View>
 

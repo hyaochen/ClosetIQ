@@ -47,6 +47,48 @@ export function CanvasToolbar({ enabled, onTool }: { enabled: boolean; onTool: (
   );
 }
 
+export type StepKey = 'shrink' | 'grow' | 'rotL' | 'rotR';
+const STEPS: { key: StepKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'shrink', label: '縮小', icon: 'remove-circle-outline' },
+  { key: 'grow', label: '放大', icon: 'add-circle-outline' },
+  { key: 'rotL', label: '左轉', icon: 'arrow-undo-outline' },
+  { key: 'rotR', label: '右轉', icon: 'arrow-redo-outline' },
+];
+
+/**
+ * 步進鈕：選取衣物時出現，縮小／放大（每次 10%）與左轉／右轉（每次 15 度）。
+ * 給觸控與無障礙用，不必靠雙指手勢；每格高度 48，超過 44 的觸控下限。
+ */
+export function CanvasStepBar({ onStep }: { onStep: (k: StepKey) => void }) {
+  const c = useColors();
+  return (
+    <View accessibilityLabel="調整選取的衣物" style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: c.line }}>
+      {STEPS.map((t, i) => (
+        <Pressable
+          key={t.key}
+          onPress={() => onStep(t.key)}
+          accessibilityRole="button"
+          accessibilityLabel={t.label}
+          style={({ pressed }) => ({
+            flex: 1,
+            minHeight: 48,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            borderLeftWidth: i === 0 ? 0 : 1,
+            borderLeftColor: c.line,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Ionicons name={t.icon} size={20} color={c.ink} />
+          <Txt size={12} style={{ lineHeight: 16 }}>{t.label}</Txt>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 const CATEGORY_ORDER = ['TOP', 'BOTTOM', 'OUTERWEAR', 'DRESS', 'SHOES', 'BAG', 'ACCESSORY', 'UNDERWEAR'];
 
 /** 下方抽屜：依分類列出衣物縮圖（去背圖優先），已放上畫布的標小方塊 */
