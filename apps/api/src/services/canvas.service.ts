@@ -11,8 +11,8 @@ import {
   type CanvasPiece,
   type CanvasBackground,
 } from '@closet/shared';
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 
 // ---- image source abstraction ----
 
@@ -71,7 +71,7 @@ export async function composeCanvas(
 
   for (const p of sorted) {
     const box = Math.max(1, Math.round(p.scale * cw));
-    let pipeline = sharp(path.join(STORAGE_PATH, p.file))
+    let pipeline = sharp(path.join(storagePath(), p.file))
       .rotate() // EXIF
       .ensureAlpha()
       .resize(box, box, { fit: 'inside', withoutEnlargement: false })
@@ -145,14 +145,14 @@ export async function saveCoverFiles(
   cover: Buffer,
   thumb: Buffer
 ): Promise<{ coverPath: string; coverThumbPath: string }> {
-  const dir = path.join(STORAGE_PATH, userId, 'cover');
+  const dir = path.join(storagePath(), userId, 'cover');
   await fs.mkdir(dir, { recursive: true });
   // new file name per render: the image route sends max-age=3600, a stable name would serve stale covers
   const stamp = Date.now().toString(36);
   const coverRel = `${userId}/cover/${outfitId}-${stamp}.webp`;
   const thumbRel = `${userId}/cover/${outfitId}-${stamp}-thumb.webp`;
-  await fs.writeFile(path.join(STORAGE_PATH, coverRel), cover);
-  await fs.writeFile(path.join(STORAGE_PATH, thumbRel), thumb);
+  await fs.writeFile(path.join(storagePath(), coverRel), cover);
+  await fs.writeFile(path.join(storagePath(), thumbRel), thumb);
   return { coverPath: coverRel, coverThumbPath: thumbRel };
 }
 
@@ -160,7 +160,7 @@ export async function deleteCoverFiles(paths: Array<string | null | undefined>) 
   for (const p of paths) {
     if (!p) continue;
     try {
-      await fs.unlink(path.join(STORAGE_PATH, p));
+      await fs.unlink(path.join(storagePath(), p));
     } catch {
       // already gone
     }

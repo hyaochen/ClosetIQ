@@ -3,8 +3,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import { prisma } from '../lib/prisma.js';
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = () => process.env.IMAGE_STORAGE_PATH || './data/images';
 
 // Feature is on only when REMBG_URL is set. Without it uploads behave exactly as before.
 export const rembgUrl = () => (process.env.REMBG_URL || '').replace(/\/$/, '');
@@ -89,7 +89,7 @@ async function trimToSubject(png: Buffer): Promise<{ image: Buffer; coverage: nu
 export async function skipCutout(imageId: string): Promise<void> {
   const image = await prisma.clothingImage.findUnique({ where: { id: imageId } });
   if (!image) return;
-  const root = STORAGE_PATH();
+  const root = storagePath();
   for (const p of [image.cutoutPath, image.cutoutThumbPath]) {
     if (p) await fs.unlink(path.join(root, p)).catch(() => {});
   }
@@ -121,7 +121,7 @@ export async function runCutout(imageId: string): Promise<void> {
         data: { cutoutStatus: 'PENDING', cutoutError: null },
       });
 
-      const root = STORAGE_PATH();
+      const root = storagePath();
       const src = await fs.readFile(path.join(root, image.originalPath));
       const jpeg = await sharp(src)
         .rotate()

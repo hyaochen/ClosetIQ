@@ -12,8 +12,8 @@ import {
 import { prisma } from '../lib/prisma.js';
 import { processAndSaveImage } from '../services/image.service.js';
 import { analyzeCandidate, type WardrobeItem } from '../services/wishlist-analysis.js';
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 const ALL_SEASONS = ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER'];
 const RECENT_DAYS = 90;
 
@@ -27,7 +27,7 @@ async function removeFiles(paths: Array<string | null | undefined>) {
   for (const p of paths) {
     if (!p) continue;
     try {
-      await fs.unlink(path.join(STORAGE_PATH, p));
+      await fs.unlink(path.join(storagePath(), p));
     } catch {
       /* 檔案可能已不存在 */
     }
@@ -245,11 +245,11 @@ export async function wishlistRoutes(app: FastifyInstance) {
       };
       try {
         for (const dir of ['original', 'display', 'thumbnail']) {
-          await fs.mkdir(path.join(STORAGE_PATH, userId, dir), { recursive: true });
+          await fs.mkdir(path.join(storagePath(), userId, dir), { recursive: true });
         }
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageOriginalPath), path.join(STORAGE_PATH, targets.originalPath));
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageDisplayPath), path.join(STORAGE_PATH, targets.displayPath));
-        await fs.copyFile(path.join(STORAGE_PATH, wish.imageThumbnailPath), path.join(STORAGE_PATH, targets.thumbnailPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageOriginalPath), path.join(storagePath(), targets.originalPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageDisplayPath), path.join(storagePath(), targets.displayPath));
+        await fs.copyFile(path.join(storagePath(), wish.imageThumbnailPath), path.join(storagePath(), targets.thumbnailPath));
         copied = targets;
       } catch {
         await removeFiles(Object.values(targets));

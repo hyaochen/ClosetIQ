@@ -3,18 +3,18 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { prisma } from '../lib/prisma.js';
 import { saveClothingImage, deleteClothingImage } from '../services/image.service.js';
+import { storagePath } from '../lib/storage.js';
 
-const STORAGE_PATH = process.env.IMAGE_STORAGE_PATH || './data/images';
 
 export async function imageRoutes(app: FastifyInstance) {
   // GET /api/images/file/* - Serve image files (public, no auth required)
   app.get('/api/images/file/*', async (request, reply) => {
     const imagePath = (request.params as any)['*'];
-    const fullPath = path.join(STORAGE_PATH, imagePath);
+    const fullPath = path.join(storagePath(), imagePath);
 
     // Basic path traversal prevention
     const resolved = path.resolve(fullPath);
-    const storageResolved = path.resolve(STORAGE_PATH);
+    const storageResolved = path.resolve(storagePath());
     if (!resolved.startsWith(storageResolved)) {
       return reply.status(403).send({ error: '禁止存取' });
     }
