@@ -39,3 +39,9 @@ apps/api/data/
 # claude-bridge secrets and logs
 tools/claude-bridge/bridge.config.json
 tools/claude-bridge/bridge.log
+
+# tryon-bridge: venv, weights, secrets, logs
+tools/tryon-bridge/.venv/
+tools/tryon-bridge/weights/
+tools/tryon-bridge/bridge.config.json
+tools/tryon-bridge/bridge.log

@@ -29,6 +29,7 @@ import { recapRoutes } from './routes/recap.js';
 // ---- P2 ----
 import { cutoutRoutes } from './routes/cutout.js';
 import { analyzeRoutes } from './routes/analyze.js';
+import { tryonRoutes } from './routes/tryon.js'; // T-CL-022
 import { outfitCanvasRoutes } from './routes/outfit-canvas.js'; // ---- P4 ----
 
 const app = Fastify({
@@ -83,6 +84,7 @@ async function start() {
   // ---- P2 ----
   await app.register(cutoutRoutes);
   await app.register(analyzeRoutes);
+  await app.register(tryonRoutes); // T-CL-022
   await app.register(outfitCanvasRoutes); // ---- P4 ----
 
   // Health check

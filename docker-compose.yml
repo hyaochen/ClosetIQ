@@ -41,6 +41,9 @@ services:
       # claude-bridge (tools/claude-bridge, listens on host 127.0.0.1:8765 only). Non-secret defaults:
       AI_PROVIDER: ${AI_PROVIDER:-auto}
       CLAUDE_BRIDGE_URL: ${CLAUDE_BRIDGE_URL:-http://host.docker.internal:8765}
+      # ---- T-CL-022 ---- local virtual try-on (tools/tryon-bridge, host 127.0.0.1:8766). Token: TRYON_BRIDGE_TOKEN in .env.ai
+      TRYON_BRIDGE_URL: ${TRYON_BRIDGE_URL:-http://host.docker.internal:8766}
+      TRYON_DAILY_LIMIT: ${TRYON_DAILY_LIMIT:-20}
     # Reaches the host from the container (Docker Desktop also resolves it natively; this makes Linux hosts work too).
     extra_hosts:
       - "host.docker.internal:host-gateway"

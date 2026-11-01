@@ -57,7 +57,8 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export async function api<T = any>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  responseType: 'json' | 'blob' = 'json'
 ): Promise<T> {
   let token = await getAccessToken();
 
@@ -97,6 +98,7 @@ export async function api<T = any>(
     throw new Error(error.error || `HTTP ${res.status}`);
   }
 
+  if (responseType === 'blob') return (await res.blob()) as unknown as T;
   const json = await res.json();
   return json;
 }

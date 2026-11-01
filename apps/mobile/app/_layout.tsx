@@ -55,6 +55,7 @@ export default function RootLayout() {
             <Stack.Screen name="item/[id]" />
             <Stack.Screen name="item/add" />
             <Stack.Screen name="item/edit" />
+            <Stack.Screen name="item/tryon" />
             <Stack.Screen name="outfit/[id]" />
             <Stack.Screen name="outfit/builder" />
             <Stack.Screen name="declutter" />
