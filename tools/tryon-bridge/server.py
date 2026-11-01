@@ -37,7 +37,7 @@ TOKEN = os.environ.get("TRYON_BRIDGE_TOKEN") or cfg.get("token", "")
 PORT = int(os.environ.get("TRYON_BRIDGE_PORT") or cfg.get("port", 8766))
 HOST = os.environ.get("TRYON_BRIDGE_HOST") or cfg.get("host", "127.0.0.1")
 WEIGHTS = os.environ.get("TRYON_WEIGHTS_DIR") or str(HERE / "weights")
-TIMEOUT_S = int(os.environ.get("TRYON_TIMEOUT_S", "180"))
+TIMEOUT_S = int(os.environ.get("TRYON_TIMEOUT_S", "570"))  # api job timeout is 600 s; GPU contention can mean minutes per image
 TIMESTEPS = int(os.environ.get("TRYON_TIMESTEPS", "30"))
 MAX_BYTES = 8 * 1024 * 1024
 MAX_SIDE = 4096  # reject absurd dimensions before decoding into memory
@@ -123,7 +123,7 @@ async def health(req: Request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     ready = state["pipeline"] is not None
     return JSONResponse(
-        {"ok": ready, "model": "fashn-vton-1.5", "busy": state["busy"], "loadSeconds": state["load_s"]},
+        {"ok": ready, "model": "fashn-vton-1.5", "busy": state["busy"], "waiting": state["waiting"], "loadSeconds": state["load_s"]},
         status_code=200 if ready else 503,
     )
 

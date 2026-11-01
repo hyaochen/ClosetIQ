@@ -27,8 +27,16 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** 送出全身照 + 衣物，回傳合成照的 data URL（只存在記憶體，不會存到伺服器）。 */
-export async function requestTryon(itemId: string, photo: PickedPhoto): Promise<string> {
+export type TryonJobView = {
+  status: 'queued' | 'running' | 'done' | 'failed';
+  error?: string;
+  /** 只有 queued 時有：1 = 下一個輪到（前面有 1 張正在合成） */
+  queuePosition?: number;
+  elapsedMs: number;
+};
+
+/** 送出全身照 + 衣物，伺服器立刻回 jobId（背景合成，用 getTryonJob 輪詢）。 */
+export async function submitTryon(itemId: string, photo: PickedPhoto): Promise<string> {
   const formData = new FormData();
   formData.append('itemId', itemId);
   if (Platform.OS === 'web') {
@@ -37,8 +45,23 @@ export async function requestTryon(itemId: string, photo: PickedPhoto): Promise<
   } else {
     formData.append('file', { uri: photo.uri, type: photo.type || 'image/jpeg', name: photo.fileName || 'person.jpg' } as any);
   }
-  const blob = await api<Blob>('/api/tryon', { method: 'POST', body: formData }, 'blob');
+  const r = await api<{ jobId: string }>('/api/tryon', { method: 'POST', body: formData });
+  return r.jobId;
+}
+
+export function getTryonJob(jobId: string): Promise<TryonJobView> {
+  return api<TryonJobView>(`/api/tryon/jobs/${encodeURIComponent(jobId)}`);
+}
+
+/** 完成後取合成照，回傳 data URL（只存在記憶體）。 */
+export async function fetchTryonResult(jobId: string): Promise<string> {
+  const blob = await api<Blob>(`/api/tryon/jobs/${encodeURIComponent(jobId)}/result`, {}, 'blob');
   return blobToDataUrl(blob);
+}
+
+export function formatElapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** 網頁版：觸發下載（手機瀏覽器可從下載/分享存進相簿）。 */

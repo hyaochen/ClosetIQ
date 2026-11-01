@@ -9,7 +9,10 @@ import {
   tryonStatus,
   isTryonUserAllowed,
   mapCategory,
-  runTryon,
+  submitTryonJob,
+  getTryonJob,
+  getTryonResult,
+  userHasActiveTryonJob,
   reserveTryonQuota,
   refundTryonQuota,
   tryonDailyLimit,
@@ -25,7 +28,7 @@ export async function tryonRoutes(app: FastifyInstance) {
   // GET /api/tryon/status - the item page only shows the try-on entry when enabled
   app.get('/api/tryon/status', async (request, reply) => reply.send(await tryonStatus(request.user.id)));
 
-  // POST /api/tryon  multipart: "itemId" field + "file" (full-body photo). Responds with the composite PNG.
+  // POST /api/tryon  multipart: "itemId" field + "file" (full-body photo). Responds 202 { jobId }; poll /api/tryon/jobs/:id, fetch /result when done.
   app.post('/api/tryon', { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } }, async (request, reply) => {
     if (!isTryonUserAllowed(request.user.id)) return reply.status(403).send({ error: '此帳號未開放虛擬試穿' });
     if (!request.isMultipart()) return reply.status(400).send({ error: '請上傳全身照' });
@@ -83,29 +86,48 @@ export async function tryonRoutes(app: FastifyInstance) {
     }
     photo = null;
 
-    // 2. Daily quota
+    // 2. One job in flight per user (checked before spending quota)
+    if (userHasActiveTryonJob(request.user.id)) {
+      return reply.status(409).send({ error: '你已有一張試穿正在進行，請等它完成後再試' });
+    }
+
+    // 3. Daily quota (counted at submit; refunded if the bridge call later fails)
     const used = await reserveTryonQuota(request.user.id);
     const limit = tryonDailyLimit();
     if (used === null) {
       return reply.status(429).send({ error: `今日虛擬試穿次數已用完（上限 ${limit} 次）`, quota: { limit, used: limit, remaining: 0 } });
     }
 
-    // 3. Bridge call; a failed call does not consume quota
+    // 4. Hand the job to the background worker and answer at once (Cloudflare cuts requests at 100 s)
     try {
-      const png = await runTryon(person, garment, category);
+      const userId = request.user.id;
+      const jobId = submitTryonJob(userId, person, garment, category, () => refundTryonQuota(userId));
       reply.header('Cache-Control', 'no-store');
-      reply.header('X-Tryon-Remaining', String(Math.max(0, limit - used)));
-      return reply.type('image/png').send(png);
+      return reply.status(202).send({ jobId, quota: { limit, used, remaining: Math.max(0, limit - used) } });
     } catch (err: any) {
       await refundTryonQuota(request.user.id);
-      request.log.error({ err: err?.message }, 'tryon failed');
-      if (err instanceof TryonError && err.status === 429) {
-        return reply.status(503).send({ error: '試穿服務忙碌中，請稍後再試' });
-      }
-      if (err instanceof TryonError && err.status === 400) {
-        return reply.status(400).send({ error: '這張照片無法用於試穿，請換一張清楚的全身照' });
-      }
-      return reply.status(502).send({ error: '虛擬試穿暫時失敗，請稍後再試' });
+      if (err instanceof TryonError) return reply.status(err.status).send({ error: err.message });
+      request.log.error({ err: err?.message }, 'tryon submit failed');
+      return reply.status(500).send({ error: '虛擬試穿暫時失敗，請稍後再試' });
     }
+  });
+
+  // GET /api/tryon/jobs/:id  -> { status, error?, queuePosition?, elapsedMs }; 404 for unknown, expired or someone else's job
+  app.get('/api/tryon/jobs/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const view = getTryonJob(request.user.id, id);
+    if (!view) return reply.status(404).send({ error: '找不到此試穿結果，請重新試穿' });
+    reply.header('Cache-Control', 'no-store');
+    return reply.send(view);
+  });
+
+  // GET /api/tryon/jobs/:id/result -> the composite PNG (409 while not finished)
+  app.get('/api/tryon/jobs/:id/result', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const r = getTryonResult(request.user.id, id);
+    if (r === null) return reply.status(404).send({ error: '找不到此試穿結果，請重新試穿' });
+    if (r === 'notready') return reply.status(409).send({ error: '試穿尚未完成' });
+    reply.header('Cache-Control', 'no-store');
+    return reply.type('image/png').send(r);
   });
 }

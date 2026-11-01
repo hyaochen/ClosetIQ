@@ -1,4 +1,4 @@
-// T-CL-022 smoke: POST /api/tryon through the host tryon-bridge (local api + throwaway DB only).
+// T-CL-022 / T-CL-023 smoke: POST /api/tryon (202 + jobId, poll /api/tryon/jobs/:id, fetch /result) through the host tryon-bridge (local api + throwaway DB only).
 //   node apps/api/scripts/smoke-tryon.mjs <apiBase> <phase> <person.jpg> <garment.png> <stateFile> [outPng]
 // phases (the driver restarts the api between them):
 //   deny   api has AI_ALLOWED_USER_IDS empty       -> registers users A and B, expects status false / 403
@@ -60,14 +60,36 @@ if (phase === 'deny') {
   ok('no JWT -> 401', (await fetch(base + '/api/tryon/status')).status === 401);
   ok('SHOES -> 400', (await tryon(A.token, shoes)).status === 400);
   ok("someone else's item -> 404", (await tryon(A.token, bItem)).status === 404);
+  // T-CL-023: submit returns 202 + jobId at once, then poll
   const t0 = Date.now();
-  const res = await tryon(A.token, top);
+  const sub = await tryon(A.token, top);
+  const subJson = await sub.json().catch(() => ({}));
+  ok('POST /api/tryon answers 202 with a jobId quickly', sub.status === 202 && !!subJson.jobId && Date.now() - t0 < 5000, `status=${sub.status} ${Date.now() - t0}ms`);
+  const jobId = subJson.jobId;
+  const dup = await tryon(A.token, top);
+  ok('second submit while one is in flight -> 409', dup.status === 409, `status=${dup.status}`);
+  ok("B cannot read A's job (404)", (await json('GET', `/api/tryon/jobs/${jobId}`, null, B.token)).status === 404);
+  ok("B cannot read A's result (404)", (await json('GET', `/api/tryon/jobs/${jobId}/result`, null, B.token)).status === 404);
+  ok('no JWT on job -> 401', (await fetch(`${base}/api/tryon/jobs/${jobId}`)).status === 401);
+  const early = await json('GET', `/api/tryon/jobs/${jobId}/result`, null, A.token);
+  ok('result before done -> 409', early.status === 409 || early.status === 200, `status=${early.status}`);
+  let view = {};
+  const seen = new Set();
+  while (Date.now() - t0 < 15 * 60_000) {
+    const r = await json('GET', `/api/tryon/jobs/${jobId}`, null, A.token);
+    view = await r.json();
+    seen.add(view.status);
+    if (view.status === 'done' || view.status === 'failed') break;
+    await new Promise((r2) => setTimeout(r2, 2500));
+  }
+  ok('job reaches done', view.status === 'done', `statuses=${[...seen].join('>')} ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  const res = await json('GET', `/api/tryon/jobs/${jobId}/result`, null, A.token);
   const buf = Buffer.from(await res.arrayBuffer());
   const isPng = buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  ok('real try-on returns a PNG', res.status === 200 && isPng, `status=${res.status} bytes=${buf.length} ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  ok('result is a PNG', res.status === 200 && isPng, `status=${res.status} bytes=${buf.length}`);
   if (isPng && outPng) fs.writeFileSync(outPng, buf);
   const again = await tryon(A.token, top);
-  ok('second call hits the daily limit (429, TRYON_DAILY_LIMIT=1)', again.status === 429);
+  ok('next submit hits the daily limit (429, TRYON_DAILY_LIMIT=1)', again.status === 429);
 }
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');
 process.exit(failed ? 1 : 0);

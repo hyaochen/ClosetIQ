@@ -14,14 +14,20 @@ closet-api --HTTP, Bearer--> host 127.0.0.1:8766 (server.py, FastAPI + uvicorn) 
   returns `image/png` (576x864; headers `X-Duration-Ms`, `X-Width`, `X-Height`). Each image up to 8 MB / 4096 px.
   A transparent cutout garment is flattened onto white (the pipeline is run with `garment_photo_type="flat-lay"`).
 - The model stays resident (about 4.7 GB VRAM idle, about 5.5 GB reserved while running; torch peak allocation 3.2 GB).
-  One inference at a time, up to 2 waiting (then 429), 180 s timeout (504). A timed-out job cannot be killed
+  One inference at a time, up to 2 in flight (then 429), 570 s timeout (504, `TRYON_TIMEOUT_S`). `GET /health` also reports `busy` and `waiting` (in flight, including the running one). A timed-out job cannot be killed
   mid-flight, so it keeps the lock until it finishes; the next request queues behind it.
 - Privacy: person photos exist only in memory. No file is written, no image content is logged
   (one line per call: time, route, status, ms; plus tqdm progress). HF telemetry is disabled
   (`HF_HUB_DISABLE_TELEMETRY=1`, `DO_NOT_TRACK=1`). The FASHN source has no network code besides weight download.
-- API side routes: `GET /api/tryon/status`, `POST /api/tryon` (multipart `itemId` + `file`). Categories:
+- API side routes (T-CL-023, submit + poll): `GET /api/tryon/status`; `POST /api/tryon` (multipart `itemId` + `file`) validates and answers
+  **202 `{ jobId, quota }`** at once; `GET /api/tryon/jobs/:id` -> `{ status: queued|running|done|failed, error?, queuePosition?, elapsedMs }`;
+  `GET /api/tryon/jobs/:id/result` -> the PNG (409 until done). Another user's, unknown or expired job is 404. One job in flight per user (409),
+  jobs run one at a time across users (up to `TRYON_MAX_QUEUED`=4 waiting, then 503). Jobs and PNGs live in api memory only, `TRYON_JOB_TTL_MS`
+  (15 min) after they end; an api restart loses them. The api waits up to `TRYON_JOB_TIMEOUT_MS` (10 min) per job; it talks to the bridge on
+  the host, not through the Cloudflare tunnel, so the 100 s limit only applies to the short polling requests. Categories:
   TOP and OUTERWEAR -> tops, BOTTOM -> bottoms, DRESS -> one-pieces; everything else is 400.
-  Daily limit `TRYON_DAILY_LIMIT` (default 20, counted in `AiUsage` under day `tryon:YYYY-MM-DD`, no migration).
+  Daily limit `TRYON_DAILY_LIMIT` (default 20, counted in `AiUsage` under day `tryon:YYYY-MM-DD`, no migration), counted when the job is accepted
+  and refunded if the bridge call fails.
 
 ## Setup (once, about 6 GB disk: venv 3.6 GB, weights 2.1 GB, human parser 0.25 GB in the HF cache)
 
@@ -45,7 +51,8 @@ venv, weights, `bridge.config.json` and `bridge.log` are gitignored.
 ## Run
 
 ```
-powershell -File tools/tryon-bridge/start-bridge.ps1      # foreground, appends to bridge.log
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/tryon-bridge/start-bridge.ps1   # foreground, appends stdout+stderr to bridge.log
+# the script hands the redirection to cmd.exe: Windows PowerShell 5.1 turns python's stderr INFO lines into NativeCommandError and would exit
 ```
 
 Model load takes about 6-11 s. Not registered as a logon task (the worker does not touch Windows settings);
@@ -58,5 +65,5 @@ Add your ClosetIQ user id to `AI_ALLOWED_USER_IDS` in `.env.ai` (shared with the
 - Output 576x864 (the model's working size, whatever the input size).
 - 30 diffusion steps: about 23-29 s per image when the GPU is otherwise free; 80-200 s when other processes
   keep it at 90%+ utilisation (this host runs other GPU jobs). 20 steps (`TRYON_TIMESTEPS=20`) is roughly one third faster.
-- Cloudflare's tunnel gives up on a response after 100 s (error 524). Fine on a free GPU, not when contended.
-  If this goes beyond a PoC, turn `/api/tryon` into submit + poll.
+- Cloudflare's tunnel gives up on a response after 100 s (error 524), so `/api/tryon` is submit + poll (T-CL-023); the long wait
+  happens between api and bridge on the same host. A job that times out still keeps the GPU lock until it finishes (cannot be aborted).
