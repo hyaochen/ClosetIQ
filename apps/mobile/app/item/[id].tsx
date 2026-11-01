@@ -17,6 +17,7 @@ import {
 import { api } from '@/lib/api';
 import { imageUrl, fullImage } from '@/lib/images';
 import { recutout } from '@/lib/cutout';
+import { useTryonStatus, TRYON_CATEGORIES } from '@/lib/tryon';
 import { queryClient } from '@/lib/query-client';
 import { useColors } from '@/lib/theme';
 import { logWear, setLaundryStatus, localDateString, logDateKey, useEffectiveSeason, itemIsOffSeason } from '@/lib/queries';
@@ -41,6 +42,7 @@ export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [wearLoading, setWearLoading] = useState(false);
   const [imgIndex, setImgIndex] = useState(0);
+  const tryon = useTryonStatus();
 
   const { data, isLoading } = useQuery({
     queryKey: ['items', id],
@@ -223,6 +225,12 @@ export default function ItemDetailScreen() {
                 ]}
               />
             </View>
+
+            {tryon.data?.enabled && TRYON_CATEGORIES.includes(item.category) && images.length > 0 ? (
+              <View style={{ marginTop: 14 }}>
+                <Button label="虛擬試穿" icon="body-outline" variant="outline" onPress={() => router.push(`/item/tryon?id=${id}`)} />
+              </View>
+            ) : null}
 
             <View style={{ marginTop: 14 }}>
               <StatRow
