@@ -14,6 +14,7 @@ const POLL_MS = 2500;
 const MAX_POLL_FAILS = 4; // consecutive network errors before giving up
 import type { PickedPhoto } from '@/lib/cutout';
 import { TopBar, Txt, Serif, Eyebrow, Button } from '@/components/ui';
+import { WebcamCapture, canUseWebcam } from '@/components/WebcamCapture';
 
 export default function TryonScreen() {
   const c = useColors();
@@ -32,6 +33,8 @@ export default function TryonScreen() {
   const [job, setJob] = useState<TryonJobView | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAt = useRef(0);
+  const [webcamOpen, setWebcamOpen] = useState(false);
+  const blobUrl = useRef<string | null>(null);
   const running = submitting || jobId !== null;
 
   // 輪詢：每 2.5 秒問一次進度；離開頁面（unmount）或換 job 就停。
@@ -84,7 +87,26 @@ export default function TryonScreen() {
     return () => clearInterval(t);
   }, [running]);
 
+  // 換照片或離開頁面時釋放舊的 blob URL
+  const revokeBlob = () => {
+    if (blobUrl.current) URL.revokeObjectURL(blobUrl.current);
+    blobUrl.current = null;
+  };
+  useEffect(() => revokeBlob, []);
+
+  const onWebcamCapture = (p: PickedPhoto) => {
+    revokeBlob();
+    blobUrl.current = p.uri;
+    setPhoto(p);
+    setResult(null);
+    setWebcamOpen(false);
+  };
+
   const pick = async (useCamera: boolean) => {
+    if (useCamera && Platform.OS === 'web' && canUseWebcam()) {
+      setWebcamOpen(true);
+      return;
+    }
     const perm = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -97,6 +119,7 @@ export default function TryonScreen() {
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
     if (r.canceled) return;
     const a = r.assets[0];
+    revokeBlob();
     setPhoto({ uri: a.uri, type: a.mimeType || 'image/jpeg', fileName: a.fileName || 'person.jpg' });
     setResult(null);
   };
@@ -147,6 +170,14 @@ export default function TryonScreen() {
                 <Button label="拍照" icon="camera-outline" variant="outline" style={{ flex: 1 }} onPress={() => pick(true)} disabled={running} />
                 <Button label="選照片" icon="image-outline" variant="outline" style={{ flex: 1 }} onPress={() => pick(false)} disabled={running} />
               </View>
+
+              {webcamOpen ? (
+                <WebcamCapture
+                  onCapture={onWebcamCapture}
+                  onClose={() => setWebcamOpen(false)}
+                  onUseLibrary={() => pick(false)}
+                />
+              ) : null}
 
               {photo ? (
                 <View style={{ marginTop: 16, flexDirection: 'row', gap: 12 }}>
