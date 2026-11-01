@@ -9,3 +9,7 @@ dist
 .turbo
 data
 apps/api/data
+tools/tryon-bridge/.venv
+tools/tryon-bridge/weights
+tools/tryon-bridge/bridge.config.json
+tools/tryon-bridge/bridge.log
