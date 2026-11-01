@@ -1,0 +1,8 @@
+# Registered by the master session on 2026-11-01 with owner approval (T-CL-024 deploy). Kept for re-registration.
+# Run as the account holder after running setup-token.mjs once:
+#
+#   $vbs = "C:\Users\a0927\Desktop\Closet\tools\tryon-bridge\run-hidden.vbs"
+#   $a = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbs`""
+#   $t = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+#   $s = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero)
+#   Register-ScheduledTask -TaskName "ClosetIQ tryon-bridge" -Action $a -Trigger $t -Settings $s
