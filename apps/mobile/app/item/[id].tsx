@@ -16,7 +16,7 @@ import {
 } from '@closet/shared';
 import { api } from '@/lib/api';
 import { imageUrl, fullImage } from '@/lib/images';
-import { recutout } from '@/lib/cutout';
+import { recutout, skipCutoutOnServer } from '@/lib/cutout';
 import { useTryonStatus, TRYON_CATEGORIES } from '@/lib/tryon';
 import { queryClient } from '@/lib/query-client';
 import { useColors } from '@/lib/theme';
@@ -66,6 +66,21 @@ export default function ItemDetailScreen() {
       await queryClient.invalidateQueries({ queryKey: ['items', id] });
     } catch (err: any) {
       showAlert('重新去背失敗', err.message);
+    } finally {
+      setRecutting(false);
+    }
+  };
+
+  // 去背結果不理想時退回原圖（同新增流程的「用原圖」）
+  const handleRestoreOriginal = async (imageId: string) => {
+    const confirmed = await showConfirm('還原原圖', '要移除這張的去背結果，改回顯示原圖嗎？之後仍可再按「去背」。');
+    if (!confirmed) return;
+    setRecutting(true);
+    try {
+      await skipCutoutOnServer(imageId);
+      await queryClient.invalidateQueries({ queryKey: ['items', id] });
+    } catch (err: any) {
+      showAlert('還原失敗', err.message);
     } finally {
       setRecutting(false);
     }
@@ -191,16 +206,30 @@ export default function ItemDetailScreen() {
                     <Txt size={12} tone="mute">去背處理中</Txt>
                   </View>
                 ) : (
-                  <Pressable
-                    onPress={() => handleRecutout(images[imgIndex].id)}
-                    disabled={recutting}
-                    accessibilityRole="button"
-                    accessibilityLabel="重新去背"
-                    hitSlop={6}
-                    style={{ minHeight: 36, justifyContent: 'center', opacity: recutting ? 0.5 : 1 }}
-                  >
-                    <Txt size={12} style={{ textDecorationLine: 'underline' }}>{images[imgIndex].cutoutStatus === 'DONE' ? '重新去背' : '去背'}</Txt>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', gap: 16 }}>
+                    <Pressable
+                      onPress={() => handleRecutout(images[imgIndex].id)}
+                      disabled={recutting}
+                      accessibilityRole="button"
+                      accessibilityLabel={images[imgIndex].cutoutStatus === 'DONE' ? '重新去背' : '去背'}
+                      hitSlop={6}
+                      style={{ minHeight: 36, justifyContent: 'center', opacity: recutting ? 0.5 : 1 }}
+                    >
+                      <Txt size={12} style={{ textDecorationLine: 'underline' }}>{images[imgIndex].cutoutStatus === 'DONE' ? '重新去背' : '去背'}</Txt>
+                    </Pressable>
+                    {images[imgIndex].cutoutStatus === 'DONE' ? (
+                      <Pressable
+                        onPress={() => handleRestoreOriginal(images[imgIndex].id)}
+                        disabled={recutting}
+                        accessibilityRole="button"
+                        accessibilityLabel="還原原圖"
+                        hitSlop={6}
+                        style={{ minHeight: 36, justifyContent: 'center', opacity: recutting ? 0.5 : 1 }}
+                      >
+                        <Txt size={12} style={{ textDecorationLine: 'underline' }}>還原原圖</Txt>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 )}
               </View>
             ) : null}
