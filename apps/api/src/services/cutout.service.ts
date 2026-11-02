@@ -18,6 +18,7 @@ const OUT_MAX_EDGE = 1024; // long edge of the stored transparent cutout
 const THUMB_EDGE = 300;
 const ALPHA_THRESHOLD = 16;
 const MIN_COVERAGE = 0.01; // less than 1% opaque pixels => mask is empty, treat as failure
+const MAX_TRYON_COVERAGE = 0.92; // mask over nearly the whole frame => the background was kept
 
 class Queue {
   private running = 0;
@@ -50,6 +51,33 @@ async function callRembg(jpeg: Buffer): Promise<Buffer> {
   });
   if (!res.ok) throw new Error(`rembg HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+function rembgInput(src: Buffer): Promise<Buffer> {
+  return sharp(src)
+    .rotate()
+    .resize(SEND_MAX_EDGE, SEND_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+    .flatten({ background: '#FFFFFF' })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+}
+
+/**
+ * Trimmed transparent PNG of a garment for virtual try-on, made in memory: nothing is stored and the image row is
+ * untouched. null when rembg is off, fails, or the mask looks wrong; the caller then sends the photo as is.
+ */
+export async function cutoutForTryon(originalPath: string): Promise<Buffer | null> {
+  if (!cutoutEnabled()) return null;
+  try {
+    return await queue.run(async () => {
+      const src = await fs.readFile(path.join(storagePath(), originalPath));
+      const { image, coverage } = await trimToSubject(await callRembg(await rembgInput(src)));
+      return coverage < MIN_COVERAGE || coverage > MAX_TRYON_COVERAGE ? null : image;
+    });
+  } catch (err: any) {
+    console.error(`[cutout] tryon garment failed: ${err?.name === 'TimeoutError' ? 'rembg timeout' : err?.message || 'unknown error'}`);
+    return null;
+  }
 }
 
 /** Crop to the opaque bounding box (+4% pad) so collage / card layouts can centre the garment. */
@@ -123,14 +151,7 @@ export async function runCutout(imageId: string): Promise<void> {
 
       const root = storagePath();
       const src = await fs.readFile(path.join(root, image.originalPath));
-      const jpeg = await sharp(src)
-        .rotate()
-        .resize(SEND_MAX_EDGE, SEND_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
-        .flatten({ background: '#FFFFFF' })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      const cut = await callRembg(jpeg);
+      const cut = await callRembg(await rembgInput(src));
       const { image: trimmed, coverage } = await trimToSubject(cut);
       if (coverage < MIN_COVERAGE) throw new Error('empty mask');
 
