@@ -30,6 +30,24 @@ export function mapCategory(category: string): TryonCategory | null {
   }
 }
 
+export type GarmentSource = { stored: string } | { live: string; fallback: string };
+
+/**
+ * Which picture the model gets for an item. A raw photo (garment on a bed, pillows in frame) is read as part of
+ * the garment, so anything without a stored cutout is cut out on the fly; SKIPPED means the user rejected the
+ * cutout for this photo, so that one goes as is.
+ */
+export function garmentSource(image: {
+  displayPath: string;
+  originalPath: string;
+  cutoutPath?: string | null;
+  cutoutStatus?: string | null;
+}): GarmentSource {
+  if (image.cutoutStatus === 'DONE' && image.cutoutPath) return { stored: image.cutoutPath };
+  if (image.cutoutStatus === 'SKIPPED') return { stored: image.displayPath };
+  return { live: image.originalPath, fallback: image.displayPath };
+}
+
 /** Same allowlist as the AI bridge (AI_ALLOWED_USER_IDS, comma separated; empty = nobody). */
 export function isTryonUserAllowed(userId: string): boolean {
   const ids = (process.env.AI_ALLOWED_USER_IDS || '').split(',').map((x) => x.trim()).filter(Boolean);

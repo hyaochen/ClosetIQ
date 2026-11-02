@@ -9,6 +9,7 @@ import {
   tryonStatus,
   isTryonUserAllowed,
   mapCategory,
+  garmentSource,
   submitTryonJob,
   getTryonJob,
   getTryonResult,
@@ -18,6 +19,7 @@ import {
   tryonDailyLimit,
   TryonError,
 } from '../services/tryon.service.js';
+import { cutoutForTryon } from '../services/cutout.service.js';
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const MAX_EDGE = 1536;
@@ -64,12 +66,12 @@ export async function tryonRoutes(app: FastifyInstance) {
 
     const image = item.images[0];
     if (!image) return reply.status(400).send({ error: '此衣物沒有照片' });
-    const garmentRel = image.cutoutStatus === 'DONE' && image.cutoutPath ? image.cutoutPath : image.displayPath;
+    const source = garmentSource(image);
 
     let garment: Buffer;
     let person: Buffer;
     try {
-      garment = await fs.readFile(path.join(storagePath(), garmentRel));
+      garment = await fs.readFile(path.join(storagePath(), 'stored' in source ? source.stored : source.fallback));
     } catch {
       return reply.status(404).send({ error: '衣物圖片檔案不存在' });
     }
@@ -90,6 +92,7 @@ export async function tryonRoutes(app: FastifyInstance) {
     if (userHasActiveTryonJob(request.user.id)) {
       return reply.status(409).send({ error: '你已有一張試穿正在進行，請等它完成後再試' });
     }
+    if ('live' in source) garment = (await cutoutForTryon(source.live)) ?? garment;
 
     // 3. Daily quota (counted at submit; refunded if the bridge call later fails)
     const used = await reserveTryonQuota(request.user.id);
